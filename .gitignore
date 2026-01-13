@@ -1,0 +1,29 @@
+# --- 后端 (Spring Boot / Java) ---
+target/
+*.class
+*.jar
+*.war
+*.ear
+.mvn/wrapper/maven-wrapper.jar
+# Spark/Hadoop 运行时生成的日志或临时数据
+logs/
+derby.log
+metastore_db/
+
+# --- 前端 (Vue 3 / Vite) ---
+node_modules/
+dist/
+dist-ssr/
+*.local
+# npm 或 pnpm 产生的错误日志
+npm-debug.log*
+pnpm-debug.log*
+
+# --- IDE & 系统文件 ---
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.DS_Store
+Thumbs.db
