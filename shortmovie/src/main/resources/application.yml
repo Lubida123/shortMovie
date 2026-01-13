@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: shortmovie
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/short_movie_db?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 741852963zxc
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+  group-configs:
+    - group: 系统管理
+      paths-to-match: /**
+      packages-to-scan:
+        - com.example.shortmovie.controller
+  default-flat-param-object: true
+
+knife4j:
+  enable: true
+  production: false
+  setting:
+    language: zh_cn
