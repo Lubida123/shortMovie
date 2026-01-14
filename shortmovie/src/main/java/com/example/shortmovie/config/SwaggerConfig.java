@@ -1,23 +1,35 @@
 package com.example.shortmovie.config;
 
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.env.Environment;
 
+/**
+ * Knife4j (Swagger) 配置
+ */
 @Configuration
-@Slf4j
-@RequiredArgsConstructor
 public class SwaggerConfig {
-
-    private final Environment environment;
-
-    public OpenAPI openAPI()
-    {
-        String appversion = environment.getProperty("project.version", "1.0.0");
-
-        return new OpenAPI().info(new Info().title("系统接口文档").version(appversion));
+    
+    @Bean
+    public OpenAPI openAPI() {
+        return new OpenAPI()
+                .info(new Info()
+                        .title("短视频用户端API文档")
+                        .description("短视频分析推荐系统 - 用户端后端接口")
+                        .version("1.0.0"))
+                .addSecurityItem(new SecurityRequirement().addList("Authorization"))
+                .components(new Components()
+                        .addSecuritySchemes("Authorization",
+                                new SecurityScheme()
+                                        .name("Authorization")
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")
+                                        .in(SecurityScheme.In.HEADER)
+                                        .description("JWT认证token，格式：Bearer {token}")));
     }
 }

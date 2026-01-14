@@ -1,44 +1,67 @@
 package com.example.shortmovie.utils;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 @Data
-public class R {
-
-    static final String SUCCESS = "操作成功！";
-    private Object data; //数据属性
-    private String msg; //信息属性
-    private Integer code; //代码属性
-
-    public R(Object data)
-    {
-        this(SUCCESS, data, 200);
+@Schema(description = "统一响应结果")
+public class R<T> {
+    
+    @Schema(description = "状态码：200-成功，其他-失败")
+    private Integer code;
+    
+    @Schema(description = "响应消息")
+    private String message;
+    
+    @Schema(description = "响应数据")
+    private T data;
+    
+    @Schema(description = "时间戳")
+    private Long timestamp;
+    
+    public R() {
+        this.timestamp = System.currentTimeMillis();
     }
-
-    public R(String msg, Integer code)
-    {
-        this(msg, null, code);
-    }
-
-    public R(String msg, Object data, Integer code)
-    {
-        this.msg = msg;
-        this.data = data;
+    
+    public R(Integer code, String message, T data) {
         this.code = code;
+        this.message = message;
+        this.data = data;
+        this.timestamp = System.currentTimeMillis();
     }
-
+    
     /**
-     * 返回成功JSON信息
-     * @param data
-     * @return
+     * 成功响应（带数据）
      */
-    public static R success(Object data)
-    {
-        return new R(data);
+    public static <T> R<T> ok(T data) {
+        return new R<>(200, "success", data);
     }
-
-    public  static R failed(String msg)
-    {
-        return new R(msg, 500);
+    
+    /**
+     * 成功响应（无数据）
+     */
+    public static <T> R<T> ok() {
+        return new R<>(200, "success", null);
+    }
+    
+    /**
+     * 成功响应（自定义消息）
+     */
+    public static <T> R<T> ok(String message, T data) {
+        return new R<>(200, message, data);
+    }
+    
+    /**
+     * 失败响应
+     */
+    public static <T> R<T> error(Integer code, String message) {
+        return new R<>(code, message, null);
+    }
+    
+    /**
+     * 失败响应（默认500）
+     */
+    public static <T> R<T> error(String message) {
+        return new R<>(500, message, null);
     }
 }
