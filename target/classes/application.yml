@@ -1,0 +1,78 @@
+spring:
+  application:
+    name: shortmovie
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/video_platform?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+
+  # Redis配置（暂时注释，后续任务会启用）
+  #  data:
+  #    redis:
+  #      host: localhost
+  #      port: 6379
+  #      database: 0
+  #      timeout: 3000ms
+  #      lettuce:
+  #        pool:
+  #          max-active: 8
+  #          max-idle: 8
+  #          min-idle: 0
+  #          max-wait: -1ms
+
+  # MyBatisPlus配置
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: isDeleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+      id-type: auto
+
+# MinIO配置
+minio:
+  endpoint: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket-name: short-video
+
+# JWT配置
+jwt:
+  secret: your-secret-key-change-this-in-production-environment-at-least-256-bits
+  expiration: 86400000
+
+# 推荐系统配置
+recommendation:
+  heat-score-weights:
+    play: 1.0
+    like: 3.0
+    comment: 5.0
+    collect: 8.0
+  cache-ttl: 600
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+  group-configs:
+    - group: 系统管理
+      paths-to-match: /**
+      packages-to-scan:
+        - com.example.shortmovie.controller
+  default-flat-param-object: true
+
+
+
+knife4j:
+  enable: true
+  production: false
+  setting:
+    language: zh_cn
+    swagger-model-name: 实体类列表
