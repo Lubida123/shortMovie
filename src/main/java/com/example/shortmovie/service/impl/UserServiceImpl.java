@@ -3,6 +3,7 @@ package com.example.shortmovie.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.shortmovie.dto.UserLoginDTO;
 import com.example.shortmovie.dto.UserRegisterDTO;
+import com.example.shortmovie.dto.UserUpdateDTO;
 import com.example.shortmovie.entity.EmailVerification;
 import com.example.shortmovie.entity.User;
 import com.example.shortmovie.exception.AuthenticationException;
@@ -181,5 +182,50 @@ public class UserServiceImpl implements UserService {
         UserProfileVO vo = new UserProfileVO();
         BeanUtils.copyProperties(user, vo);
         return vo;
+    }
+    
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateProfile(Long userId, UserUpdateDTO dto) {
+        // 1. 查询用户是否存在
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new ValidationException("用户不存在");
+        }
+        
+        // 2. 验证邮箱唯一性（如果要更新邮箱）
+        if (dto.getEmail() != null && !dto.getEmail().equals(user.getEmail())) {
+            LambdaQueryWrapper<User> emailQuery = new LambdaQueryWrapper<>();
+            emailQuery.eq(User::getEmail, dto.getEmail())
+                    .ne(User::getId, userId);
+            if (userMapper.selectCount(emailQuery) > 0) {
+                throw new ValidationException("邮箱已被其他用户使用");
+            }
+            user.setEmail(dto.getEmail());
+        }
+        
+        // 3. 验证手机号唯一性（如果要更新手机号）
+        if (dto.getPhone() != null && !dto.getPhone().equals(user.getPhone())) {
+            LambdaQueryWrapper<User> phoneQuery = new LambdaQueryWrapper<>();
+            phoneQuery.eq(User::getPhone, dto.getPhone())
+                    .ne(User::getId, userId);
+            if (userMapper.selectCount(phoneQuery) > 0) {
+                throw new ValidationException("手机号已被其他用户使用");
+            }
+            user.setPhone(dto.getPhone());
+        }
+        
+        // 4. 更新其他字段
+        if (dto.getNickname() != null) {
+            user.setNickname(dto.getNickname());
+        }
+        if (dto.getAvatar() != null) {
+            user.setAvatar(dto.getAvatar());
+        }
+        
+        // 5. 保存更新
+        userMapper.updateById(user);
+        
+        log.info("User profile updated successfully: userId={}", userId);
     }
 }
