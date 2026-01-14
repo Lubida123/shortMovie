@@ -2,6 +2,7 @@ package com.example.shortmovie.service;
 
 import com.example.shortmovie.dto.UserLoginDTO;
 import com.example.shortmovie.dto.UserRegisterDTO;
+import com.example.shortmovie.dto.UserUpdateDTO;
 import com.example.shortmovie.vo.LoginVO;
 import com.example.shortmovie.vo.UserProfileVO;
 
@@ -43,4 +44,11 @@ public interface UserService {
      * @return 用户信息
      */
     UserProfileVO getUserProfile(Long userId);
+    
+    /**
+     * 更新用户信息
+     * @param userId 用户ID
+     * @param dto 更新信息
+     */
+    void updateProfile(Long userId, UserUpdateDTO dto);
 }

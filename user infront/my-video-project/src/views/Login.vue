@@ -1,16 +1,20 @@
 ﻿<script setup>
-import { reactive, ref } from 'vue'
+import { reactive, ref, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import http from '../api/http'
+import { useUserStore } from '../store/userStore'
+import * as userApi from '../api/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 const activeTab = ref('login')
 const agree = ref(true)
 const loginLoading = ref(false)
 const registerLoading = ref(false)
 const codeLoading = ref(false)
 const isAuthed = ref(false)
+const codeCountdown = ref(0)
+let codeTimer = null
 
 const loginForm = reactive({
   account: '',
@@ -37,14 +41,15 @@ const handleLogin = async () => {
 
   loginLoading.value = true
   try {
-    const { data } = await http.post('/login', null, {
-      params: {
-        account: loginForm.account,
-        password: loginForm.password,
-      },
+    const { data } = await userApi.login({
+      account: loginForm.account,
+      password: loginForm.password,
     })
     isAuthed.value = data?.code === 200
-    ElMessage.success(isAuthed.value ? '登录成功' : data?.msg || '登录失败')
+    if (isAuthed.value) {
+      userStore.setAuth(data?.data)
+    }
+    ElMessage.success(isAuthed.value ? '登录成功' : data?.message || '登录失败')
     if (isAuthed.value) {
       router.push('/home')
     }
@@ -56,18 +61,30 @@ const handleLogin = async () => {
 }
 
 const handleSendCode = async () => {
+  if (codeCountdown.value > 0) {
+    return
+  }
   if (!registerForm.email) {
     ElMessage.warning('请输入邮箱')
     return
   }
   codeLoading.value = true
   try {
-    const { data } = await http.post('/send-code', null, {
-      params: {
-        email: registerForm.email,
-      },
-    })
-    ElMessage.success(data?.code === 200 ? '验证码已发送' : data?.msg || '发送失败')
+    const { data } = await userApi.sendEmailCode({ email: registerForm.email })
+    if (data?.code === 200) {
+      ElMessage.success('验证码已发送')
+      codeCountdown.value = 60
+      codeTimer = window.setInterval(() => {
+        codeCountdown.value -= 1
+        if (codeCountdown.value <= 0) {
+          codeCountdown.value = 0
+          window.clearInterval(codeTimer)
+          codeTimer = null
+        }
+      }, 1000)
+    } else {
+      ElMessage.error(data?.message || '发送失败')
+    }
   } catch (error) {
     ElMessage.error('发送失败，请稍后重试')
   } finally {
@@ -88,21 +105,21 @@ const handleRegister = async () => {
 
   registerLoading.value = true
   try {
-    const { data } = await http.post('/register', null, {
-      params: {
-        username,
-        password,
-        phone,
-        email,
-        emailCode,
-      },
+    const { data } = await userApi.register({
+      username,
+      password,
+      phone,
+      email,
+      emailCode,
     })
     if (data?.code === 200) {
       ElMessage.success('注册成功，请登录')
       activeTab.value = 'login'
+      loginForm.account = email || username
+      loginForm.password = password
       router.push('/login')
     } else {
-      ElMessage.error(data?.msg || '注册失败')
+      ElMessage.error(data?.message || '注册失败')
     }
   } catch (error) {
     ElMessage.error('注册失败，请检查后端服务')
@@ -110,6 +127,13 @@ const handleRegister = async () => {
     registerLoading.value = false
   }
 }
+
+onBeforeUnmount(() => {
+  if (codeTimer) {
+    window.clearInterval(codeTimer)
+    codeTimer = null
+  }
+})
 </script>
 
 <template>
@@ -145,7 +169,6 @@ const handleRegister = async () => {
         </div>
 
         <div v-if="activeTab === 'login'" class="form-block">
-          <div class="phone">138****8000</div>
           <el-form label-position="top">
             <el-form-item label="账号（用户名/邮箱/手机号）">
               <el-input v-model="loginForm.account" placeholder="请输入账号" />
@@ -188,8 +211,12 @@ const handleRegister = async () => {
             <el-form-item label="邮箱验证码">
               <el-input v-model="registerForm.emailCode" placeholder="请输入验证码">
                 <template #append>
-                  <el-button :loading="codeLoading" @click="handleSendCode">
-                    发送验证码
+                  <el-button
+                    :loading="codeLoading"
+                    :disabled="codeCountdown > 0"
+                    @click="handleSendCode"
+                  >
+                    {{ codeCountdown > 0 ? `${codeCountdown}s` : '发送验证码' }}
                   </el-button>
                 </template>
               </el-input>
@@ -204,7 +231,7 @@ const handleRegister = async () => {
               :loading="registerLoading"
               @click="handleRegister"
             >
-              注册并登录
+              注册
             </el-button>
           </el-form>
         </div>
@@ -228,8 +255,8 @@ const handleRegister = async () => {
   min-height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr;
-  background: var(--main-bg);
-  color: #fff;
+  background: var(--dy-bg-body);
+  color: var(--dy-text-primary);
   animation: fadeIn 0.6s ease;
 }
 
@@ -309,7 +336,7 @@ const handleRegister = async () => {
 }
 
 .tab.active {
-  background: var(--primary-btn-color);
+  background: var(--dy-brand-red);
   color: #fff;
 }
 
@@ -374,8 +401,8 @@ const handleRegister = async () => {
 }
 
 :deep(.el-button--primary) {
-  background: var(--primary-btn-color);
-  border-color: var(--primary-btn-color);
+  background: var(--dy-brand-red);
+  border-color: var(--dy-brand-red);
 }
 
 @keyframes fadeIn {

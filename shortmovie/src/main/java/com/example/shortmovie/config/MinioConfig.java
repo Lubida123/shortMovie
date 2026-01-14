@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration;
  * 暂时禁用，后续任务会启用
  */
 @Data
-//@Configuration
+@Configuration
 @ConfigurationProperties(prefix = "minio")
 public class MinioConfig {
     

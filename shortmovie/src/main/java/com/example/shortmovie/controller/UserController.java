@@ -2,9 +2,11 @@ package com.example.shortmovie.controller;
 
 import com.example.shortmovie.dto.UserLoginDTO;
 import com.example.shortmovie.dto.UserRegisterDTO;
+import com.example.shortmovie.dto.UserUpdateDTO;
 import com.example.shortmovie.service.UserService;
 import com.example.shortmovie.utils.R;
 import com.example.shortmovie.vo.LoginVO;
+import com.example.shortmovie.vo.UserProfileVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,6 +14,8 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,9 +28,9 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @Validated
 public class UserController {
-
+    
     private final UserService userService;
-
+    
     /**
      * 用户注册
      */
@@ -36,25 +40,25 @@ public class UserController {
             @Parameter(description = "用户名", required = true)
             @NotBlank(message = "用户名不能为空")
             @RequestParam String username,
-
+            
             @Parameter(description = "密码", required = true)
             @NotBlank(message = "密码不能为空")
             @RequestParam String password,
-
+            
             @Parameter(description = "手机号", required = true)
             @NotBlank(message = "手机号不能为空")
             @Pattern(regexp = "^1\\d{10}$", message = "手机号格式不正确")
             @RequestParam String phone,
-
+            
             @Parameter(description = "邮箱", required = true)
             @NotBlank(message = "邮箱不能为空")
             @Email(message = "邮箱格式不正确")
             @RequestParam String email,
-
+            
             @Parameter(description = "邮箱验证码", required = true)
             @NotBlank(message = "验证码不能为空")
             @RequestParam String emailCode) {
-
+        
         // 构建 DTO 对象
         UserRegisterDTO dto = new UserRegisterDTO();
         dto.setUsername(username);
@@ -62,11 +66,11 @@ public class UserController {
         dto.setPhone(phone);
         dto.setEmail(email);
         dto.setEmailCode(emailCode);
-
+        
         userService.register(dto);
         return R.ok();
     }
-
+    
     /**
      * 用户登录
      */
@@ -76,20 +80,20 @@ public class UserController {
             @Parameter(description = "登录账号（用户名/邮箱/手机号）", required = true)
             @NotBlank(message = "登录账号不能为空")
             @RequestParam String account,
-
+            
             @Parameter(description = "密码", required = true)
             @NotBlank(message = "密码不能为空")
             @RequestParam String password) {
-
+        
         // 构建 DTO 对象
         UserLoginDTO dto = new UserLoginDTO();
         dto.setAccount(account);
         dto.setPassword(password);
-
+        
         LoginVO loginVO = userService.login(dto);
         return R.ok(loginVO);
     }
-
+    
     /**
      * 发送邮箱验证码
      */
@@ -100,5 +104,56 @@ public class UserController {
             @RequestParam String email) {
         userService.sendEmailCode(email);
         return R.ok();
+    }
+    
+    /**
+     * 获取用户信息
+     */
+    @Operation(summary = "获取用户信息", description = "获取当前登录用户的个人信息（不包含密码等敏感字段）")
+    @GetMapping("/profile")
+    public R<UserProfileVO> getProfile() {
+        Long userId = getCurrentUserId();
+        UserProfileVO profile = userService.getUserProfile(userId);
+        return R.ok(profile);
+    }
+    
+    /**
+     * 更新用户信息
+     */
+    @Operation(summary = "更新用户信息", description = "更新当前登录用户的个人信息，支持更新手机号、邮箱、昵称、头像")
+    @PutMapping("/profile")
+    public R<Void> updateProfile(
+            @Parameter(description = "手机号")
+            @Pattern(regexp = "^1\\d{10}$", message = "手机号格式不正确")
+            @RequestParam(required = false) String phone,
+            
+            @Parameter(description = "邮箱")
+            @Email(message = "邮箱格式不正确")
+            @RequestParam(required = false) String email,
+            
+            @Parameter(description = "昵称")
+            @RequestParam(required = false) String nickname,
+            
+            @Parameter(description = "头像URL")
+            @RequestParam(required = false) String avatar) {
+        
+        // 构建 DTO 对象
+        UserUpdateDTO dto = new UserUpdateDTO();
+        dto.setPhone(phone);
+        dto.setEmail(email);
+        dto.setNickname(nickname);
+        dto.setAvatar(avatar);
+        
+        Long userId = getCurrentUserId();
+        userService.updateProfile(userId, dto);
+        return R.ok();
+    }
+    
+    /**
+     * 获取当前登录用户ID
+     */
+    private Long getCurrentUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return (Long) authentication.getPrincipal();
     }
 }

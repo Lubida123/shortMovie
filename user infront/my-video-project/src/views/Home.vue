@@ -1,5 +1,5 @@
 ﻿<script setup>
-import VideoFeed from '../components/VideoFeed.vue'
+import VideoList from '../components/VideoList.vue'
 </script>
 
 <template>
@@ -40,15 +40,15 @@ import VideoFeed from '../components/VideoFeed.vue'
       <header class="dy-topbar">
         <div class="search">
           <img src="../assets/img/icon/search-light.png" alt="search" />
-          <input type="text" placeholder="Search videos, creators, tags" />
+          <input type="text" placeholder="搜索视频 / 创作者 / 标签" />
         </div>
         <div class="top-right">
-          <button class="ghost">Creator Center</button>
-          <router-link to="/login" class="primary">Login</router-link>
+          <button class="ghost">创作中心</button>
+          <router-link to="/login" class="primary">登录</router-link>
         </div>
       </header>
 
-      <VideoFeed />
+      <VideoList />
     </main>
   </div>
 </template>
@@ -58,15 +58,16 @@ import VideoFeed from '../components/VideoFeed.vue'
   min-height: 100vh;
   display: grid;
   grid-template-columns: 220rem 1fr;
-  background: var(--main-bg);
-  color: #fff;
+  background: var(--dy-bg-body);
+  color: var(--dy-text-primary);
 }
 
 .dy-side {
-  background: var(--active-main-bg);
+  background: var(--dy-bg-container);
   padding: 18rem 16rem;
   display: grid;
   gap: 20rem;
+  border-right: var(--dy-border-default);
 }
 
 .side-logo img {
@@ -81,13 +82,14 @@ import VideoFeed from '../components/VideoFeed.vue'
 .nav-item {
   border: none;
   background: transparent;
-  color: #cfd3e6;
+  color: var(--dy-text-tertiary);
   display: flex;
   align-items: center;
   gap: 12rem;
   padding: 10rem 12rem;
   border-radius: 12rem;
   cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
 .nav-item img {
@@ -95,8 +97,14 @@ import VideoFeed from '../components/VideoFeed.vue'
 }
 
 .nav-item.active {
-  background: rgba(252, 47, 86, 0.2);
-  color: #fff;
+  background: rgba(254, 44, 85, 0.18);
+  color: var(--dy-text-primary);
+}
+
+.nav-item:hover {
+  background: var(--dy-bg-hover);
+  color: var(--dy-text-primary);
+  transform: translateX(4rem);
 }
 
 .dy-main {
@@ -104,25 +112,33 @@ import VideoFeed from '../components/VideoFeed.vue'
   grid-template-rows: auto 1fr;
   padding: 16rem 24rem 30rem;
   gap: 16rem;
+  background: radial-gradient(circle at top, rgba(35, 40, 58, 0.35), transparent 60%);
 }
 
 .dy-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--active-main-bg);
+  background: rgba(22, 22, 24, 0.8);
   padding: 10rem 16rem;
   border-radius: 16rem;
+  box-shadow: 0 12rem 30rem rgba(0, 0, 0, 0.35);
+  position: sticky;
+  top: 12rem;
+  z-index: 10;
+  backdrop-filter: blur(20px);
+  height: 60rem;
 }
 
 .search {
   display: flex;
   align-items: center;
   gap: 10rem;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   padding: 8rem 14rem;
-  border-radius: 999rem;
+  border-radius: 20rem;
   width: min(520rem, 100%);
+  height: 40rem;
 }
 
 .search img {
@@ -133,7 +149,7 @@ import VideoFeed from '../components/VideoFeed.vue'
   flex: 1;
   border: none;
   background: transparent;
-  color: #fff;
+  color: var(--dy-text-primary);
   outline: none;
 }
 
@@ -147,17 +163,17 @@ import VideoFeed from '../components/VideoFeed.vue'
   padding: 8rem 16rem;
   border-radius: 999rem;
   border: 1rem solid transparent;
-  color: #fff;
+  color: var(--dy-text-primary);
   background: transparent;
   font-weight: 600;
 }
 
 .top-right .ghost {
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.28);
 }
 
 .top-right .primary {
-  background: var(--primary-btn-color);
+  background: var(--dy-brand-red);
 }
 
 @media (max-width: 980px) {

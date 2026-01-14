@@ -1,6 +1,16 @@
 :root {
-  font-family: "Space Grotesk", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  font-family: "PingFang SC", "HarmonyOS Sans", "Microsoft YaHei", sans-serif;
   text-rendering: optimizeLegibility;
+  --dy-bg-body: #121212;
+  --dy-bg-container: #161618;
+  --dy-bg-elevated: #252526;
+  --dy-bg-hover: #2d2d2d;
+  --dy-brand-red: #fe2c55;
+  --dy-brand-cyan: #25f4ee;
+  --dy-text-primary: rgba(255, 255, 255, 1);
+  --dy-text-secondary: rgba(255, 255, 255, 0.88);
+  --dy-text-tertiary: rgba(255, 255, 255, 0.55);
+  --dy-border-default: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 * {
@@ -9,6 +19,8 @@
 
 body {
   margin: 0;
+  background: var(--dy-bg-body);
+  color: var(--dy-text-primary);
 }
 
 a {
@@ -25,8 +37,19 @@ img {
   display: block;
   max-width: 100%;
 }
-@import './assets/less/index.less';
 
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 body.dy-fullscreen {
   overflow: hidden;
 }

@@ -106,14 +106,14 @@ onBeforeUnmount(() => {
             <div class="player-user">
               <img class="avatar" src="../assets/img/avatar.png" alt="avatar" />
               <div>
-                <div class="author">@luxiao</div>
-                <div class="caption">what is your name · #2026</div>
+                <div class="author">@卢昱晓</div>
+                <div class="caption">所以你叫什么名字 · #2026</div>
               </div>
             </div>
           </div>
           <div class="player-footer">
             <span>Reason: city mood + blue tone</span>
-            <span>Next: Sea Night · 00:24</span>
+            <span>下一条：海边夏夜 · 00:24</span>
           </div>
         </div>
       </swiper-slide>
@@ -157,15 +157,34 @@ onBeforeUnmount(() => {
   background-size: cover;
   box-shadow: 0 24rem 60rem rgba(0, 0, 0, 0.45);
   cursor: pointer;
+  border: var(--dy-border-default);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.player-cover::before {
+  content: "";
+  position: absolute;
+  inset: -20rem;
+  background: inherit;
+  filter: blur(30px);
+  transform: scale(1.1);
+  opacity: 0.6;
+}
+
+.player-cover:hover {
+  transform: translateY(-4rem);
+  box-shadow: 0 30rem 70rem rgba(0, 0, 0, 0.55);
 }
 
 .player-overlay {
+  position: relative;
   height: 100%;
   padding: 20rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   background: linear-gradient(180deg, rgba(12, 13, 18, 0.2), rgba(12, 13, 18, 0.8));
+  z-index: 1;
 }
 
 .player-meta {
@@ -198,9 +217,14 @@ onBeforeUnmount(() => {
 
 .progress-bar {
   flex: 1;
-  height: 6rem;
+  height: 2rem;
   background: rgba(255, 255, 255, 0.35);
   border-radius: 999rem;
+  transition: height 0.2s ease;
+}
+
+.player-progress:hover .progress-bar {
+  height: 4rem;
 }
 
 .progress-fill {
@@ -216,6 +240,7 @@ onBeforeUnmount(() => {
   bottom: 120rem;
   display: grid;
   gap: 14rem;
+  z-index: 2;
 }
 
 .action {
@@ -228,6 +253,12 @@ onBeforeUnmount(() => {
   justify-items: center;
   gap: 6rem;
   cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.action:hover {
+  transform: translateY(-2rem);
+  background: rgba(28, 32, 48, 0.9);
 }
 
 .action img {
@@ -248,6 +279,8 @@ onBeforeUnmount(() => {
   background: rgba(0, 0, 0, 0.45);
   padding: 10rem 12rem;
   border-radius: 14rem;
+  backdrop-filter: blur(6px);
+  z-index: 2;
 }
 
 .avatar {
@@ -270,7 +303,7 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   font-size: 12rem;
-  color: var(--second-text-color);
+  color: var(--dy-text-tertiary);
 }
 
 .float-buttons {
@@ -291,6 +324,13 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   cursor: pointer;
+  box-shadow: 0 8rem 20rem rgba(0, 0, 0, 0.35);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.float-buttons button:hover {
+  transform: translateY(-2rem);
+  background: rgba(28, 32, 48, 0.9);
 }
 
 .float-buttons img {
