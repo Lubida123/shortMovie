@@ -1,9 +1,34 @@
 ﻿<script setup>
+import { computed, onMounted } from 'vue'
+import { useUserStore } from '../store/userStore'
 import VideoList from '../components/VideoList.vue'
+
+const userStore = useUserStore()
+const displayName = computed(
+  () => userStore.userInfo?.nickname || userStore.userInfo?.username || '未登录用户'
+)
+const avatarUrl = computed(
+  () =>
+    userStore.userInfo?.avatarUrl ||
+    new URL('../assets/img/avatar.png', import.meta.url).href
+)
+
+onMounted(() => {
+  if (userStore.token) {
+    userStore.fetchProfile()
+  }
+})
 </script>
 
 <template>
   <div class="dy-home">
+    <div class="user-entry">
+      <router-link v-if="userStore.token" to="/profile" class="user-card">
+        <img :src="avatarUrl" alt="avatar" />
+        <span>{{ displayName }}</span>
+      </router-link>
+      <router-link v-else to="/login" class="user-card login-btn">登录/注册</router-link>
+    </div>
     <aside class="dy-side">
       <div class="side-logo">
         <img src="../assets/logo.png" alt="Spark Movie" />
@@ -44,7 +69,7 @@ import VideoList from '../components/VideoList.vue'
         </div>
         <div class="top-right">
           <button class="ghost">创作中心</button>
-          <router-link to="/login" class="primary">登录</router-link>
+          <router-link v-if="!userStore.token" to="/login" class="primary">登录</router-link>
         </div>
       </header>
 
@@ -60,6 +85,7 @@ import VideoList from '../components/VideoList.vue'
   grid-template-columns: 220rem 1fr;
   background: var(--dy-bg-body);
   color: var(--dy-text-primary);
+  position: relative;
 }
 
 .dy-side {
@@ -156,6 +182,7 @@ import VideoList from '../components/VideoList.vue'
 .top-right {
   display: flex;
   gap: 10rem;
+  align-items: center;
 }
 
 .top-right button,
@@ -174,6 +201,39 @@ import VideoList from '../components/VideoList.vue'
 
 .top-right .primary {
   background: var(--dy-brand-red);
+}
+
+.user-entry {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 50;
+}
+
+.user-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 10rem;
+  padding: 8rem 14rem;
+  border-radius: 999rem;
+  background: rgba(12, 12, 18, 0.55);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  box-shadow: 0 10rem 24rem rgba(0, 0, 0, 0.35);
+  text-shadow: 0 2rem 6rem rgba(0, 0, 0, 0.6);
+}
+
+.user-card img {
+  width: 28rem;
+  height: 28rem;
+  border-radius: 50%;
+  border: 1rem solid rgba(255, 255, 255, 0.6);
+  object-fit: cover;
+}
+
+.user-card.login-btn {
+  padding: 8rem 18rem;
 }
 
 @media (max-width: 980px) {
