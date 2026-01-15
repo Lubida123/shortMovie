@@ -33,8 +33,9 @@ mybatis-plus:
       logic-not-delete-value: 0
       id-type: auto
 
-# MinIO配置
+# MinIO配置（已禁用）
 minio:
+  enabled: false
   endpoint: http://localhost:9000
   access-key: minioadmin
   secret-key: minioadmin
