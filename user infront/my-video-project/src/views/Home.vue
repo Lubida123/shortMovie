@@ -21,14 +21,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="dy-home">
-    <div class="user-entry">
-      <router-link v-if="userStore.token" to="/profile" class="user-card">
-        <img :src="avatarUrl" alt="avatar" />
-        <span>{{ displayName }}</span>
-      </router-link>
-      <router-link v-else to="/login" class="user-card login-btn">登录/注册</router-link>
-    </div>
+  <div class="dy-home bg-black">
+
     <aside class="dy-side">
       <div class="side-logo">
         <img src="../assets/logo.png" alt="Spark Movie" />
@@ -68,13 +62,36 @@ onMounted(() => {
           <input type="text" placeholder="搜索视频 / 创作者 / 标签" />
         </div>
         <div class="top-right">
+          <router-link
+            v-if="userStore.token"
+            to="/profile"
+            class="user-profile-link"
+          >
+            <el-avatar
+              :size="28"
+              :src="userStore.userInfo?.avatar || avatarUrl"
+              class="user-avatar"
+            />
+            <span>{{ displayName }}</span>
+          </router-link>
+          <router-link v-else to="/login" class="user-profile-link">登录/注册</router-link>
           <button class="ghost">创作中心</button>
           <router-link v-if="!userStore.token" to="/login" class="primary">登录</router-link>
         </div>
       </header>
 
-      <VideoList />
+      <section class="video-shell">
+        <VideoList />
+      </section>
     </main>
+
+    <el-button
+      circle
+      size="large"
+      class="upload-btn fixed bottom-20 right-4 z-50 shadow-lg border-none bg-gradient-to-r from-pink-500 to-red-500 hover:from-pink-600 hover:to-red-600 text-white"
+    >
+      <el-icon :size="24"><Plus /></el-icon>
+    </el-button>
   </div>
 </template>
 
@@ -82,7 +99,7 @@ onMounted(() => {
 .dy-home {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 220rem 1fr;
+  grid-template-columns: 240rem 1fr;
   background: var(--dy-bg-body);
   color: var(--dy-text-primary);
   position: relative;
@@ -94,6 +111,9 @@ onMounted(() => {
   display: grid;
   gap: 20rem;
   border-right: var(--dy-border-default);
+  height: 100vh;
+  position: sticky;
+  top: 0;
 }
 
 .side-logo img {
@@ -136,7 +156,7 @@ onMounted(() => {
 .dy-main {
   display: grid;
   grid-template-rows: auto 1fr;
-  padding: 16rem 24rem 30rem;
+  padding: 16rem 32rem 30rem;
   gap: 16rem;
   background: radial-gradient(circle at top, rgba(35, 40, 58, 0.35), transparent 60%);
 }
@@ -203,37 +223,26 @@ onMounted(() => {
   background: var(--dy-brand-red);
 }
 
-.user-entry {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  z-index: 50;
-}
-
-.user-card {
+.user-profile-link {
   display: inline-flex;
   align-items: center;
-  gap: 10rem;
-  padding: 8rem 14rem;
+  gap: 8rem;
+  padding: 6rem 12rem;
   border-radius: 999rem;
-  background: rgba(12, 12, 18, 0.55);
+  background: rgba(255, 255, 255, 0.08);
   color: #fff;
   text-decoration: none;
   font-weight: 600;
-  box-shadow: 0 10rem 24rem rgba(0, 0, 0, 0.35);
   text-shadow: 0 2rem 6rem rgba(0, 0, 0, 0.6);
 }
 
-.user-card img {
-  width: 28rem;
-  height: 28rem;
-  border-radius: 50%;
-  border: 1rem solid rgba(255, 255, 255, 0.6);
-  object-fit: cover;
+.user-avatar {
+  border: 1rem solid rgba(255, 255, 255, 0.5);
 }
 
-.user-card.login-btn {
-  padding: 8rem 18rem;
+.video-shell {
+  display: flex;
+  justify-content: center;
 }
 
 @media (max-width: 980px) {

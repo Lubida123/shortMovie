@@ -137,51 +137,28 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="login-shell">
-    <header class="login-header">
-      <router-link to="/home" class="close">
-        <img src="../assets/img/icon/close-white.png" alt="close" />
-      </router-link>
-      <div class="header-content">
-        <img class="logo" src="../assets/logo.png" alt="Spark Movie" />
-        <h1>登录 / 注册</h1>
-        <p>认证服务由中国移动提供</p>
-      </div>
-    </header>
+  <main class="login-page">
+    <div class="login-bg"></div>
+    <div class="login-overlay"></div>
 
-    <section class="login-content">
-      <div class="login-card">
-        <div class="tabs">
-          <button
-            class="tab"
-            :class="{ active: activeTab === 'login' }"
-            @click="activeTab = 'login'"
-          >
-            登录
-          </button>
-          <button
-            class="tab"
-            :class="{ active: activeTab === 'register' }"
-            @click="activeTab = 'register'"
-          >
-            注册
-          </button>
-        </div>
+    <section class="login-card">
+      <h1 class="text-3xl font-bold text-white text-center mb-6">短视频 Demo</h1>
 
-        <div v-if="activeTab === 'login'" class="form-block">
-          <el-form label-position="top">
+      <el-tabs v-model="activeTab" class="login-tabs">
+        <el-tab-pane label="登录" name="login">
+          <el-form label-position="top" class="form-block">
             <el-form-item label="账号（用户名/邮箱/手机号）">
               <el-input v-model="loginForm.account" placeholder="请输入账号" />
             </el-form-item>
             <el-form-item label="密码">
               <el-input v-model="loginForm.password" placeholder="请输入密码" show-password />
             </el-form-item>
-            <div class="agree">
+            <div class="agree text-white/70">
               <input id="agree-login" v-model="agree" type="checkbox" />
               <label for="agree-login">我已阅读并同意用户协议与隐私政策</label>
             </div>
             <el-button
-              class="submit"
+              class="submit w-full"
               type="primary"
               :loading="loginLoading"
               @click="handleLogin"
@@ -192,10 +169,10 @@ onBeforeUnmount(() => {
               {{ isAuthed ? '已连接后端服务' : '等待后端响应' }}
             </div>
           </el-form>
-        </div>
+        </el-tab-pane>
 
-        <div v-else class="form-block">
-          <el-form label-position="top">
+        <el-tab-pane label="注册" name="register">
+          <el-form label-position="top" class="form-block">
             <el-form-item label="用户名">
               <el-input v-model="registerForm.username" placeholder="请输入用户名" />
             </el-form-item>
@@ -214,6 +191,7 @@ onBeforeUnmount(() => {
                   <el-button
                     :loading="codeLoading"
                     :disabled="codeCountdown > 0"
+                    class="code-btn"
                     @click="handleSendCode"
                   >
                     {{ codeCountdown > 0 ? `${codeCountdown}s` : '发送验证码' }}
@@ -221,12 +199,12 @@ onBeforeUnmount(() => {
                 </template>
               </el-input>
             </el-form-item>
-            <div class="agree">
+            <div class="agree text-white/70">
               <input id="agree-register" v-model="agree" type="checkbox" />
               <label for="agree-register">我已阅读并同意用户协议与隐私政策</label>
             </div>
             <el-button
-              class="submit"
+              class="submit w-full"
               type="primary"
               :loading="registerLoading"
               @click="handleRegister"
@@ -234,185 +212,122 @@ onBeforeUnmount(() => {
               注册
             </el-button>
           </el-form>
-        </div>
-
-        <div class="alt-login">
-          <span>其他登录方式</span>
-          <div class="icons">
-            <img src="../assets/img/icon/login/toutiao-round.png" alt="toutiao" />
-            <img src="../assets/img/icon/login/qq-round.webp" alt="qq" />
-            <img src="../assets/img/icon/login/wechat-round.png" alt="wechat" />
-            <img src="../assets/img/icon/login/weibo-round.webp" alt="weibo" />
-          </div>
-        </div>
-      </div>
+        </el-tab-pane>
+      </el-tabs>
     </section>
   </main>
 </template>
 
 <style scoped lang="less">
-.login-shell {
+.login-page {
   min-height: 100vh;
-  display: grid;
-  grid-template-rows: auto 1fr;
-  background: var(--dy-bg-body);
-  color: var(--dy-text-primary);
-  animation: fadeIn 0.6s ease;
-}
-
-.login-header {
-  background: url("../assets/img/header-bg.png") center/cover no-repeat;
-  padding: 18rem 5vw 48rem;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24rem;
   position: relative;
-  min-height: 220rem;
+  overflow: hidden;
 }
 
-.close {
+.login-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-image: url('../assets/img/header-bg.png');
+  background-size: cover;
+  background-position: center;
+}
+
+.login-overlay {
   position: absolute;
-  right: 20rem;
-  top: 20rem;
-  width: 32rem;
-  height: 32rem;
-  border-radius: 999rem;
-  display: grid;
-  place-items: center;
-  background: rgba(0, 0, 0, 0.35);
-}
-
-.close img {
-  width: 14rem;
-}
-
-.header-content {
-  display: grid;
-  gap: 10rem;
-  margin-top: 40rem;
-}
-
-.logo {
-  width: 90rem;
-}
-
-.header-content h1 {
-  margin: 0;
-  font-size: 22rem;
-}
-
-.header-content p {
-  margin: 0;
-  color: #d2d4e1;
-}
-
-.login-content {
-  display: grid;
-  place-items: center;
-  padding: 20rem 5vw 60rem;
+  inset: 0;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(6px);
 }
 
 .login-card {
-  width: min(440rem, 100%);
-  background: #ffffff;
-  color: #12131a;
-  border-radius: 20rem;
-  padding: 24rem;
-  box-shadow: 0 26rem 60rem rgba(0, 0, 0, 0.35);
-}
-
-.tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10rem;
-  margin-bottom: 16rem;
-}
-
-.tab {
-  border: none;
-  padding: 10rem 0;
-  border-radius: 999rem;
-  background: #f3f4f8;
-  color: #666;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.tab.active {
-  background: var(--dy-brand-red);
-  color: #fff;
+  position: relative;
+  z-index: 20;
+  width: min(460rem, 100%);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(18px);
+  padding: 32rem 36rem;
+  border-radius: 28rem;
+  border: 1rem solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 30rem 70rem rgba(0, 0, 0, 0.45);
 }
 
 .form-block {
   display: grid;
-  gap: 8rem;
-}
-
-.phone {
-  text-align: center;
-  font-size: 18rem;
-  letter-spacing: 2rem;
-  margin-bottom: 8rem;
+  gap: 10rem;
 }
 
 .agree {
   display: flex;
   align-items: center;
   gap: 8rem;
-  margin-bottom: 16rem;
   font-size: 12rem;
-  color: #666;
 }
 
 .submit {
-  width: 100%;
+  border-radius: 999rem;
+  box-shadow: 0 14rem 30rem rgba(255, 77, 120, 0.35);
 }
 
 .status {
   margin-top: 10rem;
   font-size: 12rem;
-  color: #8a6b4e;
+  color: #cfc4b6;
   text-align: center;
 }
 
 .status.active {
-  color: #1c7c54;
+  color: #7ce0b3;
   font-weight: 600;
 }
 
-.alt-login {
-  margin-top: 18rem;
-  text-align: center;
-  font-size: 12rem;
-  color: #666;
+:deep(.el-tabs__item) {
+  color: rgba(255, 255, 255, 0.7);
 }
 
-.icons {
-  margin-top: 12rem;
-  display: flex;
-  justify-content: center;
-  gap: 16rem;
+:deep(.el-tabs__item.is-active) {
+  color: #ffffff;
 }
 
-.icons img {
-  width: 36rem;
-  height: 36rem;
+:deep(.el-tabs__active-bar) {
+  background-color: #ffffff;
+}
+
+:deep(.el-tabs__nav-wrap::after) {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+:deep(.el-form-item__label) {
+  color: rgba(255, 255, 255, 0.75);
 }
 
 :deep(.el-input__wrapper) {
   border-radius: 12rem;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+:deep(.el-input__inner) {
+  color: #fff;
+}
+
+:deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px rgba(255, 120, 140, 0.7);
 }
 
 :deep(.el-button--primary) {
-  background: var(--dy-brand-red);
-  border-color: var(--dy-brand-red);
+  background: linear-gradient(90deg, #ff4d7e, #ff8f4d);
+  border: none;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8rem);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.code-btn {
+  color: #ff8f4d;
 }
 </style>

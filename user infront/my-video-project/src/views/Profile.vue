@@ -1,9 +1,11 @@
 ﻿<script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '../store/userStore'
 import * as userApi from '../api/user'
 
+const router = useRouter()
 const userStore = useUserStore()
 const loading = ref(false)
 const passwordLoading = ref(false)
@@ -142,6 +144,14 @@ const handleLogout = async () => {
   }
 }
 
+const handleBack = () => {
+  if (window.history.length > 1) {
+    router.back()
+    return
+  }
+  router.push('/')
+}
+
 onMounted(() => {
   if (userStore.token) {
     fetchProfile()
@@ -150,36 +160,51 @@ onMounted(() => {
 </script>
 
 <template>
-  <main class="profile-shell">
+  <main class="profile-page">
+    <div class="profile-bg"></div>
+    <div class="profile-overlay"></div>
+    <button type="button" class="back-btn" @click="handleBack">←</button>
+
     <section class="profile-card">
-      <header class="profile-header">
-        <button class="avatar-btn" type="button" @click="triggerAvatar">
-          <img class="avatar" :src="displayAvatar" alt="avatar" />
+      <div class="profile-header">
+        <button type="button" class="avatar-btn" @click="triggerAvatar">
+          <el-avatar :size="88" :src="displayAvatar" class="avatar" />
           <span class="avatar-tip">点击修改头像</span>
         </button>
-        <div class="profile-title">
+        <div class="profile-meta">
           <h1>{{ displayName }}</h1>
           <p>ID: {{ displayId }}</p>
-          <div class="stats">
-            <span>获赞 {{ likeCount }}</span>
-            <span>关注 {{ followCount }}</span>
-          </div>
+          <p class="signature">{{ signature }}</p>
         </div>
-      </header>
+      </div>
 
-      <p class="signature">{{ signature }}</p>
+      <div class="stats">
+        <div>
+          <strong>{{ likeCount }}</strong>
+          <span>获赞</span>
+        </div>
+        <div>
+          <strong>{{ followCount }}</strong>
+          <span>关注</span>
+        </div>
+      </div>
 
       <input
         ref="avatarInput"
         type="file"
         accept="image/*"
-        class="hidden-input"
+        class="hidden"
         @change="handleAvatarChange"
       />
 
-      <section class="profile-section">
-        <h2>资料编辑</h2>
-        <el-form label-position="top" class="profile-form">
+      <section class="section">
+        <div class="section-title">
+          <h2>资料编辑</h2>
+          <el-button type="primary" :loading="loading" @click="handleSave">
+            保存修改
+          </el-button>
+        </div>
+        <el-form label-position="top" class="form-grid">
           <el-form-item label="昵称">
             <el-input v-model="editForm.nickname" placeholder="请输入昵称" />
           </el-form-item>
@@ -190,7 +215,7 @@ onMounted(() => {
               <el-option label="女" value="女" />
             </el-select>
           </el-form-item>
-          <el-form-item label="简介">
+          <el-form-item label="简介" class="full">
             <el-input
               v-model="editForm.description"
               type="textarea"
@@ -198,33 +223,28 @@ onMounted(() => {
               placeholder="介绍一下你自己"
             />
           </el-form-item>
-          <div class="profile-actions">
-            <el-button type="primary" :loading="loading" @click="handleSave">
-              保存修改
-            </el-button>
-          </div>
         </el-form>
       </section>
 
-      <section class="profile-section">
-        <h2>账号安全</h2>
-        <el-form label-position="top" class="profile-form">
+      <section class="section">
+        <div class="section-title">
+          <h2>账号安全</h2>
+          <el-button :loading="passwordLoading" @click="handleUpdatePassword">
+            修改密码
+          </el-button>
+        </div>
+        <el-form label-position="top" class="form-grid">
           <el-form-item label="旧密码">
             <el-input v-model="passwordForm.oldPassword" show-password placeholder="请输入旧密码" />
           </el-form-item>
           <el-form-item label="新密码">
             <el-input v-model="passwordForm.newPassword" show-password placeholder="请输入新密码" />
           </el-form-item>
-          <div class="profile-actions">
-            <el-button :loading="passwordLoading" @click="handleUpdatePassword">
-              修改密码
-            </el-button>
-          </div>
         </el-form>
       </section>
 
-      <div class="logout-block">
-        <el-button class="logout" :loading="logoutLoading" @click="handleLogout">
+      <div class="logout-row">
+        <el-button type="danger" :loading="logoutLoading" @click="handleLogout">
           退出登录
         </el-button>
       </div>
@@ -232,29 +252,71 @@ onMounted(() => {
   </main>
 </template>
 
-<style scoped lang="less">
-.profile-shell {
+<style scoped>
+.profile-page {
   min-height: 100vh;
+  background: #0f1013;
+  color: #fff;
+  padding: 80px 20px 80px;
+  position: relative;
+  overflow: hidden;
+}
+
+.profile-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-image: url('../assets/img/header-bg.png');
+  background-size: cover;
+  background-position: center;
+}
+
+.profile-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(6px);
+}
+
+
+.back-btn {
+  position: fixed;
+  top: 18px;
+  left: 18px;
+  z-index: 5;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  cursor: pointer;
   display: grid;
   place-items: center;
-  padding: 24rem 5vw 60rem;
-  background: var(--dy-bg-body);
-  color: var(--dy-text-primary);
 }
 
 .profile-card {
-  width: min(720rem, 100%);
-  background: rgba(22, 24, 34, 0.92);
-  border-radius: 24rem;
-  padding: 24rem;
-  border: var(--dy-border-default);
-  box-shadow: 0 24rem 60rem rgba(0, 0, 0, 0.35);
+  max-width: 980px;
+  margin: 0 auto;
+  background: rgba(18, 20, 30, 0.95);
+  border-radius: 20px;
+  padding: 24px 28px 28px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.45);
+  position: relative;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
 }
 
 .profile-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 20px;
   align-items: center;
-  gap: 20rem;
+  justify-items: center;
+  text-align: center;
 }
 
 .avatar-btn {
@@ -263,101 +325,133 @@ onMounted(() => {
   padding: 0;
   display: grid;
   justify-items: center;
-  gap: 6rem;
+  gap: 8px;
   cursor: pointer;
   color: inherit;
 }
 
 .avatar {
-  width: 84rem;
-  height: 84rem;
-  border-radius: 50%;
-  border: 2rem solid rgba(255, 255, 255, 0.7);
-  object-fit: cover;
+  border: 3px solid rgba(255, 255, 255, 0.7);
 }
 
 .avatar-tip {
-  font-size: 12rem;
-  color: var(--dy-text-tertiary);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
 }
 
-.profile-title h1 {
-  margin: 0 0 6rem;
-  font-size: 24rem;
+.profile-meta h1 {
+  margin: 0 0 6px;
+  font-size: 24px;
 }
 
-.profile-title p {
+.profile-meta p {
   margin: 0;
-  color: var(--dy-text-tertiary);
-  font-size: 12rem;
-}
-
-.stats {
-  display: flex;
-  gap: 12rem;
-  margin-top: 8rem;
-  font-size: 12rem;
-  color: #fff;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 13px;
 }
 
 .signature {
-  margin: 16rem 0 8rem;
-  color: #d4d7e3;
-  font-size: 13rem;
+  margin-top: 10px;
 }
 
-.profile-section {
-  margin-top: 18rem;
-  padding-top: 14rem;
-  border-top: 1rem solid rgba(255, 255, 255, 0.08);
-}
-
-.profile-section h2 {
-  margin: 0 0 12rem;
-  font-size: 16rem;
-}
-
-.profile-form {
+.stats {
   display: grid;
-  gap: 8rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 20px 0 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 14px;
+  padding: 12px 16px;
+  text-align: center;
+  width: min(520px, 100%);
 }
 
-.profile-actions {
+.stats strong {
+  display: block;
+  font-size: 18px;
+}
+
+.stats span {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  width: min(760px, 100%);
+}
+
+.section-title {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  width: 100%;
 }
 
-.logout-block {
-  margin-top: 20rem;
+.section-title h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.form-grid .full {
+  grid-column: 1 / -1;
+}
+
+.logout-row {
+  margin-top: 22px;
   display: flex;
   justify-content: center;
-}
-
-.logout {
   width: 100%;
-  background: rgba(254, 44, 85, 0.2);
-  color: #fff;
-  border: 1rem solid rgba(254, 44, 85, 0.5);
 }
 
-.hidden-input {
-  display: none;
+:deep(.el-form-item__label) {
+  color: rgba(255, 255, 255, 0.7);
 }
 
-:deep(.el-input__wrapper) {
-  border-radius: 12rem;
-}
-
-:deep(.el-textarea__inner) {
-  border-radius: 12rem;
-}
-
+:deep(.el-input__wrapper),
+:deep(.el-textarea__inner),
 :deep(.el-select__wrapper) {
-  border-radius: 12rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+:deep(.el-input__inner) {
+  color: #fff;
 }
 
 :deep(.el-button--primary) {
-  background: var(--dy-brand-red);
-  border-color: var(--dy-brand-red);
+  background: linear-gradient(90deg, #ff4d7e, #ff8f4d);
+  border: none;
+}
+
+@media (max-width: 960px) {
+  .profile-card {
+    margin-top: -40px;
+    padding: 20px;
+  }
+
+  .profile-header {
+    grid-template-columns: 1fr;
+    text-align: center;
+    justify-items: center;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .logout-row {
+    justify-content: center;
+  }
 }
 </style>
