@@ -6,6 +6,10 @@ spring:
     url: jdbc:mysql://localhost:3306/video_platform?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: root
+  servlet:
+    multipart:
+      max-file-size: 500MB      # 单个文件最大大小
+      max-request-size: 500MB   # 单次请求最大大小
   kafka:
     # Kafka集群地址
     bootstrap-servers: localhost:9092
@@ -55,13 +59,16 @@ mybatis-plus:
       logic-not-delete-value: 0
       id-type: auto
 
-# MinIO配置（已禁用）
-minio:
-  enabled: false
-  endpoint: http://localhost:9000
-  access-key: minioadmin
-  secret-key: minioadmin
-  bucket-name: short-video
+# 腾讯云 COS 配置
+tencent:
+  cos:
+    enabled: true
+    secret-id: ${TENCENT_SECRET_ID:default}
+    secret-key: ${TENCENT_SECRET_KEY:default}
+    region: ap-guangzhou
+    bucket-name: short-video-1396257793
+    base-path: shortmovie/video/
+    expire-time: 3600
 
 # JWT配置
 jwt:
@@ -90,6 +97,7 @@ springdoc:
       packages-to-scan:
         - com.example.shortmovie.controller
   default-flat-param-object: true
+
 
 
 

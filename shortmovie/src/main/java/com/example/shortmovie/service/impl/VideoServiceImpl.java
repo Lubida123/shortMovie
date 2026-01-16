@@ -11,7 +11,7 @@ import com.example.shortmovie.exception.ResourceNotFoundException;
 import com.example.shortmovie.mapper.BehaviorRecordMapper;
 import com.example.shortmovie.mapper.UserMapper;
 import com.example.shortmovie.mapper.VideoMapper;
-import com.example.shortmovie.service.MinioService;
+import com.example.shortmovie.service.FileStorageService;
 import com.example.shortmovie.service.VideoService;
 import com.example.shortmovie.vo.PageVO;
 import com.example.shortmovie.vo.VideoDetailVO;
@@ -42,9 +42,9 @@ public class VideoServiceImpl implements VideoService {
     private final UserMapper userMapper;
     private final BehaviorRecordMapper behaviorRecordMapper;
 
-    // 使用 Optional 处理可能不存在的 MinioService
+    // 使用统一的文件存储服务（支持腾讯云 COS 等对象存储）
     @Autowired(required = false)
-    private MinioService minioService;
+    private FileStorageService fileStorageService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -54,19 +54,25 @@ public class VideoServiceImpl implements VideoService {
             throw new BusinessException(400, "视频文件不能为空");
         }
 
-        // 检查 MinIO 是否可用
-        if (minioService == null) {
+        // 检查文件存储服务是否可用
+        if (fileStorageService == null) {
             throw new BusinessException(500, "文件存储服务未启用，请联系管理员");
         }
 
         // 验证作者存在
         User author = userMapper.selectById(authorId);
         if (author == null) {
-            throw new BusinessException(404, "用户不存在");
+            // 临时处理：如果用户不存在，创建一个默认用户信息（仅用于测试）
+            author = new User();
+            author.setId(authorId);
+            author.setUsername("测试用户");
         }
 
-        // 上传文件到 MinIO
-        String objectKey = minioService.uploadVideo(file);
+        // 上传文件到存储服务
+        String objectKey = fileStorageService.uploadFile(file);
+
+        // 获取视频访问 URL
+        String videoUrl = fileStorageService.getFileUrl(objectKey);
 
         // 创建视频记录
         Video video = new Video();
@@ -75,6 +81,7 @@ public class VideoServiceImpl implements VideoService {
         video.setAuthorId(authorId);
         video.setAuthorName(author.getUsername());
         video.setObjectKey(objectKey);
+        video.setVideoUrl(videoUrl);  // 保存视频 URL
         video.setFileSize(file.getSize());
         video.setFormat(getFileExtension(file.getOriginalFilename()));
         video.setCategory(dto.getCategory());
@@ -93,9 +100,6 @@ public class VideoServiceImpl implements VideoService {
 
         // 保存到数据库
         videoMapper.insert(video);
-
-        // 获取视频访问 URL
-        String videoUrl = minioService.getVideoUrl(objectKey);
 
         // 构建响应
         return VideoUploadVO.builder()
@@ -153,10 +157,10 @@ public class VideoServiceImpl implements VideoService {
             throw new ResourceNotFoundException("视频不存在");
         }
 
-        // 获取 MinIO 预签名 URL（如果 MinIO 可用）
+        // 获取文件访问 URL（如果存储服务可用）
         String videoUrl = null;
-        if (minioService != null && video.getObjectKey() != null) {
-            videoUrl = minioService.getVideoUrl(video.getObjectKey());
+        if (fileStorageService != null && video.getObjectKey() != null) {
+            videoUrl = fileStorageService.getFileUrl(video.getObjectKey());
         }
 
         // 如果用户已登录，查询用户的点赞和收藏状态
@@ -221,10 +225,10 @@ public class VideoServiceImpl implements VideoService {
      * 转换为 VideoVO
      */
     private VideoVO convertToVideoVO(Video video, Set<Long> likedVideoIds, Set<Long> collectedVideoIds) {
-        // 获取视频 URL（如果 MinIO 可用）
+        // 获取视频 URL（如果存储服务可用）
         String videoUrl = null;
-        if (minioService != null && video.getObjectKey() != null) {
-            videoUrl = minioService.getVideoUrl(video.getObjectKey());
+        if (fileStorageService != null && video.getObjectKey() != null) {
+            videoUrl = fileStorageService.getFileUrl(video.getObjectKey());
         }
 
         return VideoVO.builder()

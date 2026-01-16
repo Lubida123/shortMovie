@@ -33,7 +33,7 @@ public interface VideoService {
     PageVO<VideoVO> getVideoList(Integer pageNum, Integer pageSize, Long userId);
     
     /**
-     * 获取视频详情（包含 MinIO URL）
+     * 获取视频详情（包含预签名访问URL）
      * 
      * @param videoId 视频ID
      * @param userId 当前用户ID（可选，用于判断点赞/收藏状态）

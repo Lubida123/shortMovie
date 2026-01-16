@@ -37,10 +37,10 @@ public class VideoDetailVO {
     @Schema(description = "封面URL")
     private String coverUrl;
     
-    @Schema(description = "视频URL（MinIO预签名URL）")
+    @Schema(description = "视频访问URL（预签名）")
     private String videoUrl;
     
-    @Schema(description = "MinIO对象键")
+    @Schema(description = "文件存储路径（对象键）")
     private String objectKey;
     
     @Schema(description = "时长（秒）")
