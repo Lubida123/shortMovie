@@ -1,0 +1,31 @@
+/* 视频预览容器（对齐用户端9:16/16:9比例） */
+.dy-audit-video-container {
+  background: var(--dy-bg-container);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* 审核状态标签（贴合品牌扩展色） */
+.dy-audit-tag-pending {
+  background: var(--dy-admin-warning);
+  color: white;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+.dy-audit-tag-passed {
+  background: var(--dy-admin-success);
+  color: white;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+/* 进度条（复用用户端交互逻辑） */
+.dy-audit-progress {
+  height: 2px;
+  background: var(--dy-text-tertiary);
+}
+.dy-audit-progress:hover {
+  height: 4px;
+}

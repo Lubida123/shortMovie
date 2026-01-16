@@ -1,0 +1,18 @@
+/* 虚拟列表容器（复用用户端交互侧边栏规则） */
+.dy-admin-virtual-list {
+  background: var(--dy-bg-container);
+  border-radius: 12px;
+}
+
+/* 二级内容缩进（复用用户端回复引导线） */
+.dy-admin-list-item-child {
+  border-left: 1px solid var(--dy-bg-hover);
+  padding-left: 12px;
+  margin-left: 8px;
+}
+
+/* 数字展示（强制DIN字体） */
+.dy-admin-list-count {
+  font-family: "DIN Condensed", "DIN Alternate", sans-serif;
+  color: var(--dy-brand-cyan);
+}

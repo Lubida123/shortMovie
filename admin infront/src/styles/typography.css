@@ -1,0 +1,17 @@
+/* 基础字体栈 */
+body, .dy-admin-container {
+  font-family: "PingFang SC", "HarmonyOS Sans", "Microsoft YaHei", sans-serif;
+  line-height: 1.5;
+}
+
+/* 数字专用（管理员端数据面板、审核数、播放量等） */
+.dy-admin-number, .dy-admin-count, .dy-admin-duration {
+  font-family: "DIN Condensed", "DIN Alternate", sans-serif;
+}
+
+/* 4px步进系统 */
+.text-12 { font-size: 12px; }
+.text-14 { font-size: 14px; }
+.text-16 { font-size: 16px; }
+.text-20 { font-size: 20px; }
+.text-24 { font-size: 24px; }

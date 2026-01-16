@@ -1,0 +1,28 @@
+/* 管理员端布局容器 */
+.dy-admin-layout {
+  display: grid;
+  height: 100vh;
+  grid-template-columns: var(--sidebar-width) 1fr var(--right-panel-width);
+}
+
+/* 响应式断点（复用用户端规则） */
+@media (max-width: 1024px) {
+  .dy-admin-layout {
+    --sidebar-width: 64px;
+    --right-panel-width: 0; /* 管理员端右侧面板折叠为抽屉 */
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1440px) {
+  .dy-admin-layout {
+    --sidebar-width: 240px;
+    --right-panel-width: 336px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .dy-admin-layout {
+    --sidebar-width: 240px;
+    --right-panel-width: 360px;
+  }
+}

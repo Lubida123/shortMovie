@@ -1,0 +1,25 @@
+/* 复用用户端点击反馈 */
+.dy-admin-btn {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.dy-admin-btn:active {
+  transform: scale(1.2) scale(1);
+}
+
+/* 管理员端加载态（复用骨架屏逻辑） */
+.dy-admin-skeleton {
+  background: linear-gradient(90deg, var(--dy-bg-elevated) 0%, var(--dy-bg-hover) 50%, var(--dy-bg-elevated) 100%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* 弹窗遮罩（复用用户端层级切换规则） */
+.dy-admin-modal-mask {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+}
