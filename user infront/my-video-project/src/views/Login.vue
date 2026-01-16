@@ -142,7 +142,7 @@ onBeforeUnmount(() => {
     <div class="login-overlay"></div>
 
     <section class="login-card">
-      <h1 class="text-3xl font-bold text-white text-center mb-6">短视频 Demo</h1>
+      <h1 class="login-title">短视频 Demo</h1>
 
       <el-tabs v-model="activeTab" class="login-tabs">
         <el-tab-pane label="登录" name="login">
@@ -228,35 +228,43 @@ onBeforeUnmount(() => {
   padding: 24rem;
   position: relative;
   overflow: hidden;
+  background: var(--dy-bg-body);
 }
 
 .login-bg {
   position: fixed;
   inset: 0;
   z-index: 0;
-  background-image: url('../assets/img/header-bg.png');
-  background-size: cover;
-  background-position: center;
+  background: radial-gradient(circle at 15% 20%, rgba(34, 211, 238, 0.18), transparent 45%),
+    radial-gradient(circle at 80% 10%, rgba(59, 130, 246, 0.2), transparent 50%),
+    radial-gradient(circle at 60% 80%, rgba(249, 115, 22, 0.16), transparent 45%);
 }
 
 .login-overlay {
   position: absolute;
   inset: 0;
   z-index: 10;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(6px);
+  background: rgba(8, 10, 18, 0.65);
+  backdrop-filter: blur(14px);
 }
 
 .login-card {
   position: relative;
   z-index: 20;
   width: min(460rem, 100%);
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(18px);
+  background: linear-gradient(140deg, rgba(16, 20, 34, 0.95), rgba(12, 15, 26, 0.96));
   padding: 32rem 36rem;
-  border-radius: 28rem;
-  border: 1rem solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 30rem 70rem rgba(0, 0, 0, 0.45);
+  border-radius: 24rem;
+  border: 1rem solid rgba(148, 163, 184, 0.18);
+  box-shadow: var(--dy-shadow-card);
+}
+
+.login-title {
+  margin: 0 0 22rem;
+  font-size: 26rem;
+  font-family: var(--font-heading);
+  color: var(--dy-text-primary);
+  text-align: center;
 }
 
 .form-block {
@@ -269,65 +277,67 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8rem;
   font-size: 12rem;
+  color: var(--dy-text-secondary);
 }
 
 .submit {
   border-radius: 999rem;
-  box-shadow: 0 14rem 30rem rgba(255, 77, 120, 0.35);
+  box-shadow: 0 14rem 30rem rgba(59, 130, 246, 0.35);
 }
 
 .status {
   margin-top: 10rem;
   font-size: 12rem;
-  color: #cfc4b6;
+  color: var(--dy-text-tertiary);
   text-align: center;
 }
 
 .status.active {
-  color: #7ce0b3;
+  color: #4ade80;
   font-weight: 600;
 }
 
 :deep(.el-tabs__item) {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--dy-text-tertiary);
 }
 
 :deep(.el-tabs__item.is-active) {
-  color: #ffffff;
+  color: var(--dy-text-primary);
 }
 
 :deep(.el-tabs__active-bar) {
-  background-color: #ffffff;
+  background-color: var(--dy-brand-cyan);
 }
 
 :deep(.el-tabs__nav-wrap::after) {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(148, 163, 184, 0.2);
 }
 
 :deep(.el-form-item__label) {
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--dy-text-secondary);
 }
 
 :deep(.el-input__wrapper) {
   border-radius: 12rem;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(15, 18, 29, 0.7);
   box-shadow: none;
+  border: 1rem solid rgba(148, 163, 184, 0.16);
 }
 
 :deep(.el-input__inner) {
-  color: #fff;
+  color: var(--dy-text-primary);
 }
 
 :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px rgba(255, 120, 140, 0.7);
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.6);
 }
 
 :deep(.el-button--primary) {
-  background: linear-gradient(90deg, #ff4d7e, #ff8f4d);
+  background: linear-gradient(120deg, var(--dy-brand-blue), var(--dy-brand-cyan));
   border: none;
 }
 
 .code-btn {
-  color: #ff8f4d;
+  color: var(--dy-brand-cyan);
 }
 </style>

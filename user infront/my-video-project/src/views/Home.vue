@@ -25,7 +25,7 @@ onMounted(() => {
 
     <aside class="dy-side">
       <div class="side-logo">
-        <img src="../assets/logo.png" alt="Spark Movie" />
+        <img src="../assets/log.png" alt="Spark Movie" class="logo-img" />
       </div>
       <nav class="side-nav">
         <button class="nav-item active">
@@ -74,9 +74,22 @@ onMounted(() => {
             />
             <span>{{ displayName }}</span>
           </router-link>
-          <router-link v-else to="/login" class="user-profile-link">登录/注册</router-link>
-          <button class="ghost">创作中心</button>
-          <router-link v-if="!userStore.token" to="/login" class="primary">登录</router-link>
+          <span v-if="userStore.token" class="status-pill">在线</span>
+          <button v-if="userStore.token" class="ghost">创作中心</button>
+          <router-link
+            v-if="!userStore.token"
+            to="/login"
+            class="login-link primary-action"
+          >
+            登录/注册
+          </router-link>
+          <router-link
+            v-else
+            to="/profile"
+            class="login-link primary-action user-center"
+          >
+            用户中心
+          </router-link>
         </div>
       </header>
 
@@ -105,46 +118,82 @@ onMounted(() => {
   position: relative;
 }
 
+.dy-home::before,
+.dy-home::after {
+  content: '';
+  position: fixed;
+  inset: auto;
+  width: 380rem;
+  height: 380rem;
+  filter: blur(80px);
+  opacity: 0.55;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.dy-home::before {
+  top: -120rem;
+  right: -120rem;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.7), transparent 60%);
+}
+
+.dy-home::after {
+  bottom: -160rem;
+  left: 180rem;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.6), transparent 60%);
+}
+
 .dy-side {
-  background: var(--dy-bg-container);
-  padding: 18rem 16rem;
+  background: linear-gradient(180deg, rgba(15, 18, 29, 0.95) 0%, rgba(12, 14, 22, 0.95) 100%);
+  padding: 22rem 18rem;
   display: grid;
-  gap: 20rem;
-  border-right: var(--dy-border-default);
+  gap: 24rem;
+  border-right: 1px solid rgba(148, 163, 184, 0.12);
   height: 100vh;
   position: sticky;
   top: 0;
+  z-index: 1;
 }
 
 .side-logo img {
-  width: 110rem;
+  width: 124rem;
+}
+
+.logo-img {
+  border-radius: 18rem;
+  padding: 6rem;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.35), rgba(34, 211, 238, 0.2));
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow: 0 10rem 24rem rgba(15, 23, 42, 0.6), 0 0 24rem rgba(34, 211, 238, 0.25);
 }
 
 .side-nav {
   display: grid;
-  gap: 10rem;
+  gap: 12rem;
 }
 
 .nav-item {
   border: none;
   background: transparent;
-  color: var(--dy-text-tertiary);
+  color: var(--dy-text-secondary);
   display: flex;
   align-items: center;
   gap: 12rem;
-  padding: 10rem 12rem;
-  border-radius: 12rem;
+  padding: 12rem 14rem;
+  border-radius: 14rem;
   cursor: pointer;
-  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .nav-item img {
   width: 20rem;
+  opacity: 0.9;
 }
 
 .nav-item.active {
-  background: rgba(254, 44, 85, 0.18);
+  background: linear-gradient(120deg, rgba(59, 130, 246, 0.25), rgba(34, 211, 238, 0.2));
   color: var(--dy-text-primary);
+  box-shadow: 0 10rem 24rem rgba(59, 130, 246, 0.18);
 }
 
 .nav-item:hover {
@@ -156,39 +205,44 @@ onMounted(() => {
 .dy-main {
   display: grid;
   grid-template-rows: auto 1fr;
-  padding: 16rem 32rem 30rem;
-  gap: 16rem;
-  background: radial-gradient(circle at top, rgba(35, 40, 58, 0.35), transparent 60%);
+  padding: 20rem 36rem 40rem;
+  gap: 18rem;
+  background: radial-gradient(circle at top, rgba(35, 44, 80, 0.4), transparent 60%);
+  position: relative;
+  z-index: 1;
 }
 
 .dy-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(22, 22, 24, 0.8);
-  padding: 10rem 16rem;
-  border-radius: 16rem;
-  box-shadow: 0 12rem 30rem rgba(0, 0, 0, 0.35);
+  background: rgba(15, 18, 29, 0.86);
+  padding: 12rem 18rem;
+  border-radius: 18rem;
+  box-shadow: var(--dy-shadow-soft);
   position: sticky;
   top: 12rem;
   z-index: 10;
   backdrop-filter: blur(20px);
-  height: 60rem;
+  height: 64rem;
+  border: 1px solid rgba(148, 163, 184, 0.12);
 }
 
 .search {
   display: flex;
   align-items: center;
   gap: 10rem;
-  background: rgba(255, 255, 255, 0.08);
-  padding: 8rem 14rem;
-  border-radius: 20rem;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 8rem 16rem;
+  border-radius: 999rem;
   width: min(520rem, 100%);
-  height: 40rem;
+  height: 42rem;
+  border: 1px solid rgba(148, 163, 184, 0.16);
 }
 
 .search img {
   width: 18rem;
+  opacity: 0.75;
 }
 
 .search input {
@@ -197,6 +251,7 @@ onMounted(() => {
   background: transparent;
   color: var(--dy-text-primary);
   outline: none;
+  font-size: 14rem;
 }
 
 .top-right {
@@ -213,14 +268,12 @@ onMounted(() => {
   color: var(--dy-text-primary);
   background: transparent;
   font-weight: 600;
+  font-size: 13rem;
+  line-height: 1;
 }
 
 .top-right .ghost {
-  border-color: rgba(255, 255, 255, 0.28);
-}
-
-.top-right .primary {
-  background: var(--dy-brand-red);
+  border-color: rgba(148, 163, 184, 0.35);
 }
 
 .user-profile-link {
@@ -240,6 +293,37 @@ onMounted(() => {
   border: 1rem solid rgba(255, 255, 255, 0.5);
 }
 
+.status-pill {
+  padding: 4rem 10rem;
+  border-radius: 999rem;
+  font-size: 11rem;
+  font-weight: 600;
+  color: #0f172a;
+  background: linear-gradient(120deg, rgba(34, 211, 238, 0.95), rgba(56, 189, 248, 0.95));
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.login-link {
+  padding: 8rem 18rem;
+  border-radius: 999rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: var(--dy-text-primary);
+  font-weight: 600;
+  font-size: 13rem;
+}
+
+.primary-action {
+  background: linear-gradient(120deg, var(--dy-brand-blue), var(--dy-brand-cyan));
+  color: #0f172a;
+  box-shadow: 0 10rem 20rem rgba(59, 130, 246, 0.25);
+  border: none;
+}
+
+.user-center {
+  background: linear-gradient(120deg, var(--dy-brand-cyan), var(--dy-brand-blue));
+}
+
 .video-shell {
   display: flex;
   justify-content: center;
@@ -252,6 +336,31 @@ onMounted(() => {
 
   .dy-side {
     grid-template-columns: repeat(auto-fit, minmax(120rem, 1fr));
+    position: relative;
+    height: auto;
+    border-right: none;
+  }
+
+  .dy-main {
+    padding: 16rem 20rem 32rem;
+  }
+
+  .dy-topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10rem;
+    height: auto;
+    padding: 12rem;
+  }
+
+  .search {
+    width: 100%;
+  }
+
+  .top-right {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 }
 </style>

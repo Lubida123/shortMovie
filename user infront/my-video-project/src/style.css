@@ -1,16 +1,23 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
 :root {
-  font-family: "PingFang SC", "HarmonyOS Sans", "Microsoft YaHei", sans-serif;
+  font-family: var(--font-body);
   text-rendering: optimizeLegibility;
-  --dy-bg-body: #121212;
-  --dy-bg-container: #161618;
-  --dy-bg-elevated: #252526;
-  --dy-bg-hover: #2d2d2d;
-  --dy-brand-red: #fe2c55;
-  --dy-brand-cyan: #25f4ee;
-  --dy-text-primary: rgba(255, 255, 255, 1);
-  --dy-text-secondary: rgba(255, 255, 255, 0.88);
-  --dy-text-tertiary: rgba(255, 255, 255, 0.55);
-  --dy-border-default: 1px solid rgba(255, 255, 255, 0.08);
+  --font-heading: "Space Grotesk", "PingFang SC", "HarmonyOS Sans", "Microsoft YaHei", sans-serif;
+  --font-body: "DM Sans", "PingFang SC", "HarmonyOS Sans", "Microsoft YaHei", sans-serif;
+  --dy-bg-body: #0b0d13;
+  --dy-bg-container: rgba(16, 18, 26, 0.9);
+  --dy-bg-elevated: rgba(22, 24, 33, 0.92);
+  --dy-bg-hover: rgba(43, 49, 66, 0.7);
+  --dy-brand-blue: #3b82f6;
+  --dy-brand-cyan: #22d3ee;
+  --dy-brand-coral: #f97316;
+  --dy-text-primary: #f8fafc;
+  --dy-text-secondary: rgba(248, 250, 252, 0.82);
+  --dy-text-tertiary: rgba(248, 250, 252, 0.55);
+  --dy-border-default: 1px solid rgba(148, 163, 184, 0.18);
+  --dy-shadow-soft: 0 18rem 40rem rgba(2, 6, 23, 0.55);
+  --dy-shadow-card: 0 14rem 32rem rgba(2, 6, 23, 0.45);
 }
 
 * {
@@ -52,4 +59,15 @@ img {
 }
 body.dy-fullscreen {
   overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

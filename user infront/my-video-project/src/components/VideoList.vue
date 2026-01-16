@@ -158,9 +158,12 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="video-list">
-    <header>
-      <h2>推荐视频</h2>
-      <p>基于推荐系统生成的个性化内容</p>
+    <header class="section-head">
+      <div>
+        <h2>推荐视频</h2>
+        <p>基于推荐系统生成的个性化内容</p>
+      </div>
+      <span class="head-count">已加载 {{ videos.length }} 条</span>
     </header>
 
     <div v-if="loadError" class="state">{{ loadError }}</div>
@@ -188,7 +191,7 @@ onBeforeUnmount(() => {
               <strong>{{ video.title }}</strong>
               <span class="author">@{{ video.authorName }}</span>
             </div>
-            <span class="likes">❤ {{ video.likeCount }}</span>
+            <span class="likes">赞 {{ video.likeCount }}</span>
           </div>
           <p class="desc">{{ video.description }}</p>
         </div>
@@ -204,18 +207,35 @@ onBeforeUnmount(() => {
 <style scoped>
 .video-list {
   display: grid;
+  gap: 18px;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
   gap: 16px;
 }
 
-.video-list header h2 {
+.section-head h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
+  font-family: var(--font-heading);
 }
 
-.video-list header p {
+.section-head p {
   margin: 6px 0 0;
   color: var(--dy-text-tertiary);
   font-size: 12px;
+}
+
+.head-count {
+  font-size: 12px;
+  color: var(--dy-text-secondary);
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.18);
+  border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 .video-card {
@@ -223,11 +243,15 @@ onBeforeUnmount(() => {
   padding: 0;
   margin: 0;
   display: grid;
-  gap: 12px;
-  background: rgba(16, 18, 26, 0.9);
-  border-radius: 16px;
-  padding: 16px;
+  grid-template-columns: minmax(280px, 1.2fr) minmax(200px, 0.8fr);
+  gap: 16px;
+  background: linear-gradient(135deg, rgba(18, 22, 36, 0.92), rgba(12, 14, 24, 0.92));
+  border-radius: 18px;
+  padding: 18px;
   border: var(--dy-border-default);
+  box-shadow: var(--dy-shadow-card);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
 }
 
 ul {
@@ -235,26 +259,31 @@ ul {
   padding: 0;
   margin: 0;
   display: grid;
-  gap: 16px;
+  gap: 18px;
 }
 
 .video-player {
   width: 100%;
   background: #0c0d14;
-  border-radius: 14px;
+  border-radius: 16px;
   overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  aspect-ratio: 16 / 9;
 }
 
 .video-el {
   width: 100%;
   display: block;
-  border-radius: 14px;
+  border-radius: 16px;
+  height: 100%;
+  object-fit: cover;
 }
 
 .video-meta {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   color: var(--dy-text-primary);
+  align-content: center;
 }
 
 .meta-head {
@@ -273,13 +302,18 @@ ul {
 
 .likes {
   font-size: 12px;
-  color: var(--dy-text-primary);
+  color: var(--dy-text-secondary);
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.15);
+  border: 1px solid rgba(249, 115, 22, 0.3);
 }
 
 .desc {
   margin: 0;
-  color: #c9ccd6;
+  color: var(--dy-text-secondary);
   font-size: 12px;
+  line-height: 1.6;
 }
 
 .state {
@@ -291,11 +325,34 @@ ul {
 
 .load-more {
   border: none;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(59, 130, 246, 0.2);
   color: var(--dy-text-primary);
-  padding: 10px 16px;
+  padding: 10px 18px;
   border-radius: 999px;
   cursor: pointer;
   margin: 0 auto;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.video-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.55);
+}
+
+.load-more:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(59, 130, 246, 0.3);
+}
+
+@media (max-width: 980px) {
+  .video-card {
+    grid-template-columns: 1fr;
+  }
+
+  .section-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 </style>

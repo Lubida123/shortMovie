@@ -244,7 +244,7 @@ onMounted(() => {
       </section>
 
       <div class="logout-row">
-        <el-button type="danger" :loading="logoutLoading" @click="handleLogout">
+        <el-button class="logout-btn" :loading="logoutLoading" @click="handleLogout">
           退出登录
         </el-button>
       </div>
@@ -255,9 +255,9 @@ onMounted(() => {
 <style scoped>
 .profile-page {
   min-height: 100vh;
-  background: #0f1013;
-  color: #fff;
-  padding: 80px 20px 80px;
+  background: var(--dy-bg-body);
+  color: var(--dy-text-primary);
+  padding: 88px 20px 80px;
   position: relative;
   overflow: hidden;
 }
@@ -266,19 +266,18 @@ onMounted(() => {
   position: fixed;
   inset: 0;
   z-index: 0;
-  background-image: url('../assets/img/header-bg.png');
-  background-size: cover;
-  background-position: center;
+  background: radial-gradient(circle at 15% 20%, rgba(34, 211, 238, 0.18), transparent 45%),
+    radial-gradient(circle at 80% 10%, rgba(59, 130, 246, 0.2), transparent 50%),
+    radial-gradient(circle at 60% 80%, rgba(249, 115, 22, 0.16), transparent 45%);
 }
 
 .profile-overlay {
   position: fixed;
   inset: 0;
   z-index: 1;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(6px);
+  background: rgba(8, 10, 18, 0.65);
+  backdrop-filter: blur(14px);
 }
-
 
 .back-btn {
   position: fixed;
@@ -288,9 +287,9 @@ onMounted(() => {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(0, 0, 0, 0.35);
-  color: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 18, 29, 0.75);
+  color: var(--dy-text-primary);
   cursor: pointer;
   display: grid;
   place-items: center;
@@ -299,11 +298,11 @@ onMounted(() => {
 .profile-card {
   max-width: 980px;
   margin: 0 auto;
-  background: rgba(18, 20, 30, 0.95);
-  border-radius: 20px;
-  padding: 24px 28px 28px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.45);
+  background: linear-gradient(140deg, rgba(16, 20, 34, 0.95), rgba(12, 15, 26, 0.96));
+  border-radius: 24px;
+  padding: 28px 32px 32px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: var(--dy-shadow-card);
   position: relative;
   z-index: 2;
   display: grid;
@@ -331,22 +330,24 @@ onMounted(() => {
 }
 
 .avatar {
-  border: 3px solid rgba(255, 255, 255, 0.7);
+  border: 3px solid rgba(59, 130, 246, 0.65);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.6);
 }
 
 .avatar-tip {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--dy-text-tertiary);
 }
 
 .profile-meta h1 {
   margin: 0 0 6px;
-  font-size: 24px;
+  font-size: 26px;
+  font-family: var(--font-heading);
 }
 
 .profile-meta p {
   margin: 0;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--dy-text-tertiary);
   font-size: 13px;
 }
 
@@ -358,27 +359,29 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin: 20px 0 12px;
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 14px;
-  padding: 12px 16px;
+  background: rgba(15, 18, 29, 0.7);
+  border-radius: 16px;
+  padding: 14px 18px;
   text-align: center;
   width: min(520px, 100%);
+  border: 1px solid rgba(148, 163, 184, 0.16);
 }
 
 .stats strong {
   display: block;
-  font-size: 18px;
+  font-size: 20px;
+  font-family: var(--font-heading);
 }
 
 .stats span {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--dy-text-tertiary);
 }
 
 .section {
   margin-top: 18px;
   padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
   width: min(760px, 100%);
 }
 
@@ -393,6 +396,7 @@ onMounted(() => {
 .section-title h2 {
   margin: 0;
   font-size: 16px;
+  font-family: var(--font-heading);
 }
 
 .form-grid {
@@ -413,25 +417,37 @@ onMounted(() => {
   width: 100%;
 }
 
+.hidden {
+  display: none;
+}
+
 :deep(.el-form-item__label) {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--dy-text-tertiary);
 }
 
 :deep(.el-input__wrapper),
 :deep(.el-textarea__inner),
 :deep(.el-select__wrapper) {
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(15, 18, 29, 0.7);
   box-shadow: none;
+  border: 1px solid rgba(148, 163, 184, 0.16);
 }
 
 :deep(.el-input__inner) {
-  color: #fff;
+  color: var(--dy-text-primary);
 }
 
 :deep(.el-button--primary) {
-  background: linear-gradient(90deg, #ff4d7e, #ff8f4d);
+  background: linear-gradient(120deg, var(--dy-brand-blue), var(--dy-brand-cyan));
   border: none;
+}
+
+:deep(.logout-btn) {
+  background: linear-gradient(120deg, var(--dy-brand-blue), var(--dy-brand-cyan));
+  border: none;
+  color: #0f172a;
+  box-shadow: 0 10rem 20rem rgba(59, 130, 246, 0.25);
 }
 
 @media (max-width: 960px) {
