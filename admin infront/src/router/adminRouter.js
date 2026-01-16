@@ -1,3 +1,4 @@
+// src/router/adminRouter.js
 import { createRouter, createWebHistory } from 'vue-router'
 import { setupAdminGuard } from './guard/adminGuard'
 // 导入布局组件（确保路径正确）
@@ -42,6 +43,13 @@ const adminRoutes = [
         name: 'AdminPermissionManage',
         component: () => import('@/views/admin/AdminPermissionManage.vue'),
         meta: { title: '权限管理', requiredPermission: 'permission:manage' }
+      },
+      // 新增视频管理路由 - 修复路径
+      {
+        path: 'video-manage', // 路由：/admin/video-manage
+        name: 'AdminVideoManage',
+        component: () => import('@/views/admin/AdminVideoManage.vue'),
+        meta: { title: '视频管理', requiredPermission: 'video:manage' }
       }
     ]
   },

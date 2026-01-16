@@ -26,3 +26,49 @@
     --right-panel-width: 360px;
   }
 }
+
+/* 表格响应式断点 */
+@media (max-width: 1200px) {
+  .table-responsive {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 992px) {
+  .table-responsive {
+    font-size: 13px;
+  }
+  
+  .table-hide-on-medium {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .table-responsive {
+    font-size: 12px;
+  }
+  
+  .table-hide-on-small {
+    display: none !important;
+  }
+  
+  .mobile-only {
+    display: block !important;
+  }
+  
+  .desktop-only {
+    display: none !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .table-responsive {
+    font-size: 11px;
+  }
+  
+  .col-adaptive {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+}

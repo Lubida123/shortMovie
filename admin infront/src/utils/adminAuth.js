@@ -34,3 +34,16 @@ export const hasAdminPermission = (permissionCode) => {
   if (userInfo.role === 'admin') return true
   return userInfo.permissions.includes(permissionCode)
 }
+
+// 模拟获取管理员信息（用于开发）
+export const mockAdminUserInfo = () => {
+  return {
+    username: '管理员',
+    role: 'admin',
+    permissions: [
+      'user:manage',
+      'permission:manage',
+      'video:manage'
+    ]
+  }
+}

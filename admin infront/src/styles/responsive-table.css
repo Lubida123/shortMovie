@@ -1,0 +1,171 @@
+/* src/styles/responsive-table.css */
+/* 表格响应式适配 */
+
+/* PC端完整表格 */
+@media (min-width: 1024px) {
+  .video-table-pc-full {
+    width: 100%;
+    min-height: 600px;
+    max-height: calc(100vh - 300px);
+    overflow: auto;
+  }
+  
+  /* 固定列宽优化 */
+  .fixed-column-id {
+    width: 80px !important;
+    min-width: 80px !important;
+  }
+  
+  .fixed-column-cover {
+    width: 120px !important;
+    min-width: 120px !important;
+  }
+  
+  .fixed-column-status {
+    width: 100px !important;
+    min-width: 100px !important;
+  }
+  
+  .fixed-column-actions {
+    width: 180px !important;
+    min-width: 180px !important;
+  }
+  
+  /* 弹性列 */
+  .flex-column-title {
+    min-width: 200px !important;
+    max-width: 300px !important;
+  }
+  
+  .flex-column-author {
+    min-width: 150px !important;
+    max-width: 200px !important;
+  }
+  
+  /* 表格内容对齐优化 */
+  .table-cell-center {
+    text-align: center !important;
+  }
+  
+  .table-cell-right {
+    text-align: right !important;
+  }
+}
+
+/* 平板端优化 (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .video-table-tablet {
+    min-height: 500px;
+    max-height: calc(100vh - 280px);
+  }
+  
+  /* 隐藏次要列 */
+  .hide-on-tablet {
+    display: none !important;
+  }
+  
+  /* 调整列宽 */
+  .tablet-column-title {
+    min-width: 180px !important;
+  }
+  
+  .tablet-column-cover {
+    width: 100px !important;
+    min-width: 100px !important;
+  }
+}
+
+/* 移动端优化 (<768px) */
+@media (max-width: 767px) {
+  .video-table-mobile {
+    max-height: calc(100vh - 320px);
+  }
+  
+  /* 移动端卡片式布局 */
+  .mobile-card-view {
+    background: var(--dy-bg-container);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    border: var(--dy-border-default);
+  }
+  
+  .mobile-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  
+  .mobile-card-cover {
+    width: 80px;
+    height: 120px;
+    border-radius: 6px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  
+  .mobile-card-info {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .mobile-card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+}
+
+/* 通用表格优化 */
+.table-container-optimized {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.table-scroll-wrapper {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  position: relative;
+}
+
+/* 表格固定头部 */
+.table-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--dy-bg-elevated) !important;
+}
+
+/* 表格行悬停效果优化 */
+.table-row-hover-effect:hover {
+  background: var(--dy-bg-hover) !important;
+  transition: background-color 0.2s ease;
+}
+
+/* 表格单元格内容优化 */
+.table-cell-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.table-cell-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* 表格分页优化 */
+.table-pagination-optimized {
+  position: sticky;
+  bottom: 0;
+  background: var(--dy-bg-container);
+  padding: 12px;
+  border-top: var(--dy-border-default);
+  z-index: 5;
+}

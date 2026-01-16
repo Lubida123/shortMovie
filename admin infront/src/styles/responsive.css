@@ -1,0 +1,203 @@
+/* 响应式工具类 */
+
+/* 显示/隐藏类 */
+.hidden {
+  display: none !important;
+}
+
+/* 移动端显示/隐藏 */
+.mobile-only {
+  display: none !important;
+}
+
+.desktop-only {
+  display: block !important;
+}
+
+@media (max-width: 768px) {
+  .mobile-only {
+    display: block !important;
+  }
+  
+  .desktop-only {
+    display: none !important;
+  }
+}
+
+/* 平板端显示/隐藏 */
+.tablet-only {
+  display: none !important;
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .tablet-only {
+    display: block !important;
+  }
+}
+
+/* 响应式文本 */
+.text-responsive {
+  font-size: clamp(12px, 2vw, 16px);
+}
+
+.text-small-responsive {
+  font-size: clamp(10px, 1.5vw, 14px);
+}
+
+.text-large-responsive {
+  font-size: clamp(16px, 2.5vw, 24px);
+}
+
+/* 响应式间距 */
+.p-responsive {
+  padding: clamp(8px, 2vw, 16px);
+}
+
+.m-responsive {
+  margin: clamp(8px, 2vw, 16px);
+}
+
+/* 响应式网格 */
+.grid-responsive {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: clamp(8px, 2vw, 16px);
+}
+
+.grid-compact {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+/* 响应式弹性布局 */
+.flex-responsive {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(8px, 2vw, 16px);
+}
+
+.flex-center-responsive {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* 响应式容器 */
+.container-responsive {
+  width: 100%;
+  max-width: 100%;
+  padding-right: clamp(8px, 2vw, 16px);
+  padding-left: clamp(8px, 2vw, 16px);
+  margin-right: auto;
+  margin-left: auto;
+}
+
+/* 响应式表格 */
+.table-responsive-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-responsive {
+  min-width: 768px;
+  width: 100%;
+}
+
+/* 响应式图片 */
+.img-responsive {
+  max-width: 100%;
+  height: auto;
+}
+
+.img-cover {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+/* 响应式按钮组 */
+.btn-group-responsive {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn-responsive {
+  min-width: auto;
+  padding: 8px 12px;
+  font-size: clamp(12px, 1.5vw, 14px);
+}
+
+/* 响应式断点工具 */
+@media (max-width: 576px) {
+  .xs-hide {
+    display: none !important;
+  }
+  
+  .xs-block {
+    display: block !important;
+  }
+  
+  .xs-flex {
+    display: flex !important;
+  }
+}
+
+@media (min-width: 577px) and (max-width: 768px) {
+  .sm-hide {
+    display: none !important;
+  }
+  
+  .sm-block {
+    display: block !important;
+  }
+  
+  .sm-flex {
+    display: flex !important;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 992px) {
+  .md-hide {
+    display: none !important;
+  }
+  
+  .md-block {
+    display: block !important;
+  }
+  
+  .md-flex {
+    display: flex !important;
+  }
+}
+
+@media (min-width: 993px) and (max-width: 1200px) {
+  .lg-hide {
+    display: none !important;
+  }
+  
+  .lg-block {
+    display: block !important;
+  }
+  
+  .lg-flex {
+    display: flex !important;
+  }
+}
+
+@media (min-width: 1201px) {
+  .xl-hide {
+    display: none !important;
+  }
+  
+  .xl-block {
+    display: block !important;
+  }
+  
+  .xl-flex {
+    display: flex !important;
+  }
+}

@@ -56,11 +56,99 @@ adminHttp.interceptors.request.use(
             children: [{ permissionCode: 'user:add', permissionName: '新增用户' }]
           },
           {
+            permissionCode: 'video:manage',
+            permissionName: '视频管理',
+            children: [
+              { permissionCode: 'video:approve', permissionName: '审核视频' },
+              { permissionCode: 'video:delete', permissionName: '删除视频' }
+            ]
+          },
+          {
             permissionCode: 'permission:manage',
             permissionName: '权限管理',
             children: [{ permissionCode: 'role:add', permissionName: '新增角色' }]
           }
         ]
+      })
+    }
+
+    // 模拟视频列表数据
+    if (config.url.includes('/video/list')) {
+      // 生成模拟视频数据
+      const generateMockVideos = () => {
+        const videos = []
+        const categories = ['life', 'entertainment', 'knowledge', 'game', 'music']
+        const statuses = ['pending', 'approved', 'rejected', 'taken_down']
+        const authors = ['张三', '李四', '王五', '赵六', '钱七']
+        
+        for (let i = 1; i <= 100; i++) {
+          videos.push({
+            id: i,
+            title: `测试视频标题 ${i}`,
+            coverUrl: `https://via.placeholder.com/120x80?text=Video${i}`,
+            duration: Math.floor(Math.random() * 600) + 60,
+            authorName: authors[Math.floor(Math.random() * authors.length)],
+            authorAvatar: `https://via.placeholder.com/40?text=User${Math.floor(Math.random() * 5) + 1}`,
+            category: categories[Math.floor(Math.random() * categories.length)],
+            views: Math.floor(Math.random() * 1000000),
+            likes: Math.floor(Math.random() * 100000),
+            comments: Math.floor(Math.random() * 10000),
+            shares: Math.floor(Math.random() * 5000),
+            status: statuses[Math.floor(Math.random() * statuses.length)],
+            createTime: `2024-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 28) + 1).padStart(2, '0')} ${String(Math.floor(Math.random() * 24)).padStart(2, '0')}:${String(Math.floor(Math.random() * 60)).padStart(2, '0')}:${String(Math.floor(Math.random() * 60)).padStart(2, '0')}`
+          })
+        }
+        return videos
+      }
+      
+      const allVideos = generateMockVideos()
+      const params = config.params || {}
+      let filteredVideos = [...allVideos]
+      
+      // 应用筛选
+      if (params.keyword) {
+        const keyword = params.keyword.toLowerCase()
+        filteredVideos = filteredVideos.filter(v => 
+          v.title.toLowerCase().includes(keyword) || 
+          v.authorName.toLowerCase().includes(keyword)
+        )
+      }
+      
+      if (params.status) {
+        filteredVideos = filteredVideos.filter(v => v.status === params.status)
+      }
+      
+      if (params.category) {
+        filteredVideos = filteredVideos.filter(v => v.category === params.category)
+      }
+      
+      // 分页
+      const page = params.pageNum || 1
+      const pageSize = params.pageSize || 10
+      const startIndex = (page - 1) * pageSize
+      const endIndex = startIndex + pageSize
+      
+      return Promise.reject({
+        mock: true,
+        data: {
+          list: filteredVideos.slice(startIndex, endIndex),
+          total: filteredVideos.length
+        }
+      })
+    }
+
+    // 模拟视频统计数据
+    if (config.url.includes('/video/stats')) {
+      return Promise.reject({
+        mock: true,
+        data: {
+          totalVideos: 1560,
+          pendingVideos: 42,
+          approvedVideos: 1480,
+          rejectedVideos: 38,
+          todayUploads: 156,
+          yesterdayUploads: 142
+        }
       })
     }
 
