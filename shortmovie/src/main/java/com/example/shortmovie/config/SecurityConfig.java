@@ -58,6 +58,7 @@ public class SecurityConfig {
                                 "/api/user/login",
                                 "/api/user/send-code"
                         ).permitAll()
+                        .requestMatchers("/sendmsg").permitAll()
                         // 其他请求需要认证
                         .anyRequest().authenticated()
                 )

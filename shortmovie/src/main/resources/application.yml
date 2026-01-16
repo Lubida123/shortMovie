@@ -6,6 +6,28 @@ spring:
     url: jdbc:mysql://localhost:3306/video_platform?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: root
+  kafka:
+    # Kafka集群地址
+    bootstrap-servers: localhost:9092
+    # 生产者配置
+    producer:
+      # 消息键的序列化方式
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # 消息值的序列化方式
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+      # 消息发送确认机制
+      acks: 1
+      # 重试次数
+      retries: 3
+      # 批量发送的大小
+      batch-size: 16384
+      # 缓冲区大小
+      buffer-memory: 33554432
+
+# 自定义topic名称
+kafka:
+  topic:
+    behavior: short_video_behavior_topic
 
   # Redis配置（暂时注释，后续任务会启用）
   #  data:
