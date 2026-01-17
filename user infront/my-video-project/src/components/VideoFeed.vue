@@ -2,11 +2,15 @@
 import { ref, watch, onBeforeUnmount } from 'vue'
 import { Swiper, SwiperSlide } from 'swiper/vue'
 import { Mousewheel, Pagination } from 'swiper/modules'
+import { getVideoList, likeVideo, unlikeVideo, collectVideo, uncollectVideo } from '../api/video' // 引入接口
+import { ElMessage } from 'element-plus'
+import { useUserStore } from '../store/userStore' // 引入用户状态，用于判断是否登录
 
 const modules = [Mousewheel, Pagination]
+const userStore=userStore()
 
 const videos = ref([
-  {
+ /* {
     id: 'v-1',
     title: 'Harbor Letter',
     author: '@luxiao',
@@ -21,8 +25,42 @@ const videos = ref([
     desc: 'Ambient sound and human whispers underground.',
     duration: '00:24',
     cover: new URL('../assets/img/poster/3.jpg', import.meta.url).href,
-  },
+  },*/
 ])
+
+// --- 1. 获取视频列表 ---
+const fetchVideos = async () => {
+  try {
+    const res = await getVideoList({ pageNum: 1, pageSize: 10 })
+    if (res.data && res.data.records) {
+      // 数据映射：将后端字段映射为前端需要的格式
+      videos.value = res.data.records.map(v => ({
+        id: v.id,
+        title: v.title,
+        author: '@' + v.authorName, // 假设后端返回 authorName
+        desc: v.description,
+        // 如果后端返回秒数 duration，格式化为 mm:ss
+        duration: formatDuration(v.duration || 0), 
+        cover: v.coverUrl, // 使用后端返回的 COS 链接
+        url: v.videoUrl,   // 视频地址
+        likeCount: v.likeCount || 0,
+        commentCount: v.commentCount || 0,
+        collectCount: v.collectCount || 0,
+        isLiked: v.isLiked || false,
+        isCollected: v.isCollected || false
+      }))
+    }
+  } catch (error) {
+    console.error('获取视频失败', error)
+  }
+}
+
+// 辅助函数：秒转 mm:ss
+const formatDuration = (seconds) => {
+  const m = Math.floor(seconds / 60).toString().padStart(2, '0')
+  const s = (seconds % 60).toString().padStart(2, '0')
+  return `${m}:${s}`
+}
 
 const activeIndex = ref(0)
 const isFullscreen = ref(false)
