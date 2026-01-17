@@ -56,8 +56,11 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/user/register",
                                 "/api/user/login",
-                                "/api/user/send-code"
+                                "/api/user/send-code",
+                                "cos/upload",
+                                "/api/video/upload"  // 临时允许视频上传（仅用于测试）
                         ).permitAll()
+                        .requestMatchers("/sendmsg").permitAll()
                         // 其他请求需要认证
                         .anyRequest().authenticated()
                 )

@@ -34,10 +34,10 @@ public class Video {
     @Schema(description = "封面URL")
     private String coverUrl;
     
-    @Schema(description = "MinIO存储路径")
+    @Schema(description = "文件存储路径（已弃用，使用objectKey）")
     private String videoUrl;
     
-    @Schema(description = "MinIO对象键")
+    @Schema(description = "文件存储路径（对象键）")
     private String objectKey;
     
     @Schema(description = "视频时长（秒）")

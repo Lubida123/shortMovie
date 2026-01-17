@@ -6,6 +6,32 @@ spring:
     url: jdbc:mysql://localhost:3306/video_platform?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: root
+  servlet:
+    multipart:
+      max-file-size: 500MB      # 单个文件最大大小
+      max-request-size: 500MB   # 单次请求最大大小
+  kafka:
+    # Kafka集群地址
+    bootstrap-servers: localhost:9092
+    # 生产者配置
+    producer:
+      # 消息键的序列化方式
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # 消息值的序列化方式
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+      # 消息发送确认机制
+      acks: 1
+      # 重试次数
+      retries: 3
+      # 批量发送的大小
+      batch-size: 16384
+      # 缓冲区大小
+      buffer-memory: 33554432
+
+# 自定义topic名称
+kafka:
+  topic:
+    behavior: short_video_behavior_topic
 
   # Redis配置（暂时注释，后续任务会启用）
   #  data:
@@ -33,12 +59,16 @@ mybatis-plus:
       logic-not-delete-value: 0
       id-type: auto
 
-# MinIO配置
-minio:
-  endpoint: http://localhost:9000
-  access-key: minioadmin
-  secret-key: minioadmin
-  bucket-name: short-video
+# 腾讯云 COS 配置
+tencent:
+  cos:
+    enabled: true
+    secret-id: ${TENCENT_SECRET_ID:default}
+    secret-key: ${TENCENT_SECRET_KEY:default}
+    region: ap-guangzhou
+    bucket-name: short-video-1396257793
+    base-path: shortmovie/video/
+    expire-time: 3600
 
 # JWT配置
 jwt:
@@ -67,6 +97,7 @@ springdoc:
       packages-to-scan:
         - com.example.shortmovie.controller
   default-flat-param-object: true
+
 
 
 

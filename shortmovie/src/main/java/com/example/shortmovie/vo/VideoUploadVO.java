@@ -19,10 +19,10 @@ public class VideoUploadVO {
     @Schema(description = "视频ID")
     private Long videoId;
     
-    @Schema(description = "MinIO 对象键")
+    @Schema(description = "文件存储路径（对象键）")
     private String objectKey;
     
-    @Schema(description = "视频访问 URL")
+    @Schema(description = "视频访问URL（预签名）")
     private String videoUrl;
     
     @Schema(description = "文件大小（字节）")
