@@ -15,6 +15,24 @@
   --dy-admin-warning: #FF9500;
   --dy-admin-success: #00C864;
   --dy-admin-danger: #FF3B30;
+   /* 新增：悬停相关变量 */
+  --dy-hover-bg-primary: rgba(37, 244, 238, 0.08);    /* 主要悬停背景色 */
+  --dy-hover-bg-secondary: rgba(254, 44, 85, 0.08);  /* 次要悬停背景色 */
+  --dy-hover-bg-light: rgba(255, 255, 255, 0.05);    /* 轻度悬停背景色 */
+  
+  /* 新增：交互状态透明度 */
+  --dy-hover-opacity: 0.9;
+  --dy-active-opacity: 0.8;
+  
+  /* 新增：动画过渡时间 */
+  --dy-transition-fast: 0.2s ease;
+  --dy-transition-normal: 0.3s ease;
+  --dy-transition-slow: 0.5s ease;
+  
+  /* 新增：悬停效果 */
+  --dy-hover-transform: translateY(-2px);
+  --dy-active-transform: translateY(0);
+  --dy-hover-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 /* 全局重置：确保Element Plus组件适配深色模式 */
@@ -24,6 +42,11 @@ body {
   background: #121212; /* 直接写死，避免依赖变量 */
   color: rgba(255, 255, 255, 1);
   font-family: "PingFang SC", "HarmonyOS Sans", "Microsoft YaHei", sans-serif;
+ /* 设置全局文本选择背景色 */
+  ::selection {
+    background: rgba(254, 44, 85, 0.3);
+    color: white;
+  }
 }
 
 /* 覆盖Element Plus默认样式 */
@@ -37,8 +60,78 @@ body {
 .el-table, .el-tree {
   --el-fill-color-blank: #161618 !important;
   --el-fill-color-lighter: #252526 !important;
+/* 增强表格悬停效果 */
+  .el-table__row {
+    &:hover {
+      --el-table-row-hover-bg-color: var(--dy-hover-bg-primary) !important;
+    }
+  }
 }
 
 .el-tag {
   --el-tag-text-color: #fff !important;
+ /* 标签悬停效果 */
+  &:hover {
+    opacity: var(--dy-hover-opacity);
+    transform: var(--dy-hover-transform);
+    transition: var(--dy-transition-fast);
+  }
+}
+
+/* 按钮悬停效果增强 */
+.el-button {
+  transition: var(--dy-transition-fast);
+  
+  &:hover:not(:disabled) {
+    transform: var(--dy-hover-transform);
+    box-shadow: var(--dy-hover-shadow);
+  }
+  
+  &:active:not(:disabled) {
+    transform: var(--dy-active-transform);
+  }
+}
+
+/* 输入框悬停效果 */
+.el-input {
+  .el-input__wrapper {
+    transition: var(--dy-transition-fast);
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.05) !important;
+      border-color: rgba(37, 244, 238, 0.3) !important;
+    }
+    
+    &:focus-within {
+      border-color: #25F4EE !important;
+      box-shadow: 0 0 0 1px rgba(37, 244, 238, 0.2) !important;
+    }
+  }
+}
+
+/* 链接悬停效果 */
+a, .el-link {
+  transition: var(--dy-transition-fast);
+  
+  &:hover {
+    color: #25F4EE !important;
+  }
+}
+
+/* 禁用状态样式 */
+.el-button.is-disabled,
+.el-input.is-disabled .el-input__inner {
+  cursor: not-allowed !important;
+  opacity: 0.5;
+}
+
+/* 卡片悬停效果 */
+.el-card {
+  transition: var(--dy-transition-normal);
+  
+  &:hover {
+    border-color: rgba(37, 244, 238, 0.2) !important;
+    transform: var(--dy-hover-transform);
+    box-shadow: var(--dy-hover-shadow) !important;
+  }
 }

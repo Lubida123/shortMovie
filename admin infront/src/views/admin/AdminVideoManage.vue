@@ -153,13 +153,14 @@
         :row-key="row => row.id"
         stripe
         border
+        class="video-table-responsive"
       >
         <el-table-column type="selection" width="55" align="center" />
         <el-table-column prop="id" label="ID" width="80" align="center" />
         
         <el-table-column label="视频封面" width="120" align="center">
           <template #default="scope">
-            <div class="video-cover-container">
+            <div class="video-cover-container" @click="handleView(scope.row)">
               <img 
                 :src="scope.row.coverUrl" 
                 alt="封面" 
@@ -170,11 +171,17 @@
           </template>
         </el-table-column>
         
-        <el-table-column prop="title" label="视频标题" min-width="200" :show-overflow-tooltip="true" />
+        <el-table-column prop="title" label="视频标题" min-width="200" :show-overflow-tooltip="true">
+          <template #default="scope">
+            <div class="video-title-cell" @click="handleView(scope.row)">
+              {{ scope.row.title }}
+            </div>
+          </template>
+        </el-table-column>
         
         <el-table-column label="作者" width="120">
           <template #default="scope">
-            <div class="author-info">
+            <div class="author-info" @click="handleViewAuthor(scope.row)">
               <el-avatar :size="24" :src="scope.row.authorAvatar" />
               <span class="author-name">{{ scope.row.authorName }}</span>
             </div>
@@ -183,7 +190,7 @@
         
         <el-table-column prop="category" label="分类" width="100" align="center">
           <template #default="scope">
-            <el-tag size="small">{{ getCategoryName(scope.row.category) }}</el-tag>
+            <el-tag size="small" class="category-tag">{{ getCategoryName(scope.row.category) }}</el-tag>
           </template>
         </el-table-column>
         
@@ -201,7 +208,12 @@
         
         <el-table-column label="状态" width="100" align="center">
           <template #default="scope">
-            <el-tag :type="getStatusType(scope.row.status)" size="small">
+            <el-tag 
+              :type="getStatusType(scope.row.status)" 
+              size="small"
+              class="status-tag"
+              @click="handleStatusClick(scope.row)"
+            >
               {{ getStatusName(scope.row.status) }}
             </el-tag>
           </template>
@@ -217,6 +229,7 @@
                 size="small" 
                 @click="handleView(scope.row)"
                 :icon="View"
+                class="action-btn"
               >
                 查看
               </el-button>
@@ -227,6 +240,7 @@
                   size="small" 
                   @click="handleApprove(scope.row)"
                   :icon="Check"
+                  class="action-btn"
                 >
                   通过
                 </el-button>
@@ -235,13 +249,14 @@
                   size="small" 
                   @click="handleReject(scope.row)"
                   :icon="Close"
+                  class="action-btn"
                 >
                   拒绝
                 </el-button>
               </div>
               
               <el-dropdown v-else>
-                <el-button size="small">
+                <el-button size="small" class="action-btn">
                   更多<el-icon><ArrowDown /></el-icon>
                 </el-button>
                 <template #dropdown>
@@ -250,7 +265,7 @@
                       <el-icon><Edit /></el-icon>编辑
                     </el-dropdown-item>
                     <el-dropdown-item @click="handleTakeDown(scope.row)" divided>
-                      <el-icon><Delete /></el-icon>删除
+                      <el-icon><Delete /></el-icon>下架
                     </el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
@@ -523,6 +538,14 @@ const handleView = (video) => {
   ElMessage.info(`查看视频: ${video.title}`)
 }
 
+const handleViewAuthor = (video) => {
+  ElMessage.info(`查看作者: ${video.authorName}`)
+}
+
+const handleStatusClick = (video) => {
+  ElMessage.info(`视频状态: ${getStatusName(video.status)}`)
+}
+
 const handleApprove = async (video) => {
   try {
     await ElMessageBox.confirm(
@@ -725,26 +748,72 @@ onMounted(() => {
   margin-bottom: 20px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   
-  :deep(.el-table) {
-    background: transparent;
-    
-    th {
-      background: #252526 !important;
-      border-color: rgba(255, 255, 255, 0.08) !important;
-      color: rgba(255, 255, 255, 0.88) !important;
-    }
-    
-    tr {
-      background: transparent !important;
-      color: rgba(255, 255, 255, 0.88) !important;
-      
-      &:hover {
-        background: rgba(255, 255, 255, 0.05) !important;
+  .video-table-responsive {
+    // 增强表格行悬停效果
+    :deep(.el-table__body) {
+      .el-table__row {
+        cursor: default; // 整行默认光标
+        
+        &:hover {
+          background-color: rgba(37, 244, 238, 0.08) !important;
+          
+          // 悬停时增强文本对比度
+          .el-table__cell {
+            .cell, span, div, .video-title-cell, .author-name {
+              color: rgba(255, 255, 255, 0.95) !important;
+            }
+            
+            // 悬停时数字计数增强
+            .views-count, .likes-count {
+              color: #25F4EE !important;
+              font-weight: 600;
+            }
+            
+            // 悬停时状态标签增强
+            .status-tag {
+              opacity: 0.9;
+              transform: translateY(-1px);
+              transition: all 0.2s ease;
+            }
+          }
+        }
+        
+        // 选中行样式
+        &.current-row {
+          background-color: rgba(254, 44, 85, 0.15) !important;
+          
+          .el-table__cell {
+            .cell, span, div {
+              color: rgba(255, 255, 255, 0.98) !important;
+            }
+          }
+        }
       }
     }
     
-    td {
-      border-color: rgba(255, 255, 255, 0.08) !important;
+    // 修正单元格样式
+    :deep(.el-table__cell) {
+      color: rgba(255, 255, 255, 0.88) !important;
+      background-color: transparent !important;
+      padding: 12px 8px !important;
+      
+      .cell {
+        color: rgba(255, 255, 255, 0.88) !important;
+      }
+    }
+    
+    // 修正表头样式
+    :deep(.el-table__header) {
+      th {
+        background: #252526 !important;
+        border-color: rgba(255, 255, 255, 0.08) !important;
+        color: rgba(255, 255, 255, 0.88) !important;
+        
+        .cell {
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.95) !important;
+        }
+      }
     }
   }
   
@@ -755,11 +824,47 @@ onMounted(() => {
     border-radius: 4px;
     overflow: hidden;
     margin: 0 auto;
+    cursor: pointer; // 封面使用指针光标
+    transition: all 0.3s ease;
+    
+    &:hover {
+      transform: scale(1.02);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      
+      .video-cover {
+        transform: scale(1.05);
+      }
+      
+      // 添加播放图标覆盖层
+      &::after {
+        content: '▶';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 36px;
+        height: 36px;
+        background: rgba(0, 0, 0, 0.7);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        color: white;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+      
+      &:hover::after {
+        opacity: 1;
+      }
+    }
     
     .video-cover {
       width: 100%;
       height: 100%;
       object-fit: cover;
+      transition: transform 0.3s ease;
     }
     
     .video-duration {
@@ -775,14 +880,49 @@ onMounted(() => {
     }
   }
   
+  .video-title-cell {
+    cursor: pointer; // 标题使用指针光标
+    transition: color 0.2s ease;
+    
+    &:hover {
+      color: #25F4EE !important;
+    }
+  }
+  
   .author-info {
     display: flex;
     align-items: center;
     gap: 8px;
+    cursor: pointer; // 作者信息使用指针光标
+    
+    &:hover {
+      .el-avatar {
+        transform: scale(1.1);
+      }
+      
+      .author-name {
+        color: #25F4EE !important;
+      }
+    }
+    
+    .el-avatar {
+      transition: transform 0.2s ease;
+    }
     
     .author-name {
       font-size: 13px;
       color: rgba(255, 255, 255, 0.88);
+      transition: color 0.2s ease;
+    }
+  }
+  
+  .category-tag {
+    cursor: default; // 分类标签默认光标
+    transition: all 0.2s ease;
+    
+    &:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
     }
   }
   
@@ -791,6 +931,22 @@ onMounted(() => {
     font-family: "DIN Condensed", "DIN Alternate", sans-serif;
     color: #25F4EE;
     font-size: 13px;
+    font-weight: 500;
+    cursor: default; // 数字使用默认光标
+    
+    &:hover {
+      color: #FE2C55 !important;
+    }
+  }
+  
+  .status-tag {
+    cursor: pointer; // 状态标签使用指针光标
+    transition: all 0.2s ease;
+    
+    &:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
   }
   
   .action-buttons {
@@ -801,6 +957,20 @@ onMounted(() => {
     .audit-buttons {
       display: flex;
       gap: 4px;
+    }
+    
+    .action-btn {
+      transition: all 0.2s ease;
+      cursor: pointer; // 按钮使用指针光标
+      
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      }
+      
+      &:active {
+        transform: translateY(0);
+      }
     }
   }
 }
@@ -815,18 +985,100 @@ onMounted(() => {
     --el-pagination-bg-color: #161618;
     --el-pagination-button-bg-color: #252526;
     
+    .btn-prev, .btn-next {
+      cursor: pointer;
+      
+      &:hover:not(:disabled) {
+        background-color: rgba(37, 244, 238, 0.1) !important;
+      }
+    }
+    
     .el-pager li {
       background: #252526;
       color: rgba(255, 255, 255, 0.88);
+      cursor: pointer;
       
       &:hover {
-        color: #FE2C55;
+        color: #25F4EE !important;
+        background-color: rgba(37, 244, 238, 0.1) !important;
       }
       
       &.active {
         background: #FE2C55;
         color: white;
+        cursor: default;
       }
+    }
+    
+    .el-pagination__jump {
+      .el-input__wrapper {
+        background: #252526;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        
+        .el-input__inner {
+          color: rgba(255, 255, 255, 0.88);
+        }
+      }
+    }
+  }
+}
+
+// 响应式适配
+@media (max-width: 768px) {
+  .admin-video-manage-container {
+    padding: 12px;
+  }
+  
+  .search-filter-section {
+    padding: 16px;
+    
+    .search-box {
+      flex-direction: column;
+      
+      .search-input {
+        width: 100%;
+      }
+    }
+    
+    .filter-box {
+      flex-direction: column;
+      
+      .filter-select {
+        min-width: 100%;
+      }
+    }
+  }
+  
+  .table-container {
+    padding: 12px;
+    
+    .video-cover-container {
+      width: 80px;
+      height: 48px;
+    }
+    
+    .action-buttons {
+      flex-wrap: wrap;
+      justify-content: center;
+      
+      .audit-buttons {
+        flex-direction: column;
+        width: 100%;
+        
+        .el-button {
+          width: 100%;
+          margin: 2px 0;
+        }
+      }
+    }
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .table-container {
+    .video-cover-container {
+      width: 90px;
+      height: 54px;
     }
   }
 }

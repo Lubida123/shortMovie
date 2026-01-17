@@ -1,77 +1,44 @@
 /* src/styles/responsive-table.css */
 /* 表格响应式适配 */
 
-/* PC端完整表格 */
+/* 电脑屏幕优化 (≥ 1024px) */
 @media (min-width: 1024px) {
-  .video-table-pc-full {
-    width: 100%;
-    min-height: 600px;
-    max-height: calc(100vh - 300px);
-    overflow: auto;
-  }
-  
-  /* 固定列宽优化 */
-  .fixed-column-id {
-    width: 80px !important;
-    min-width: 80px !important;
-  }
-  
-  .fixed-column-cover {
-    width: 120px !important;
-    min-width: 120px !important;
-  }
-  
-  .fixed-column-status {
-    width: 100px !important;
-    min-width: 100px !important;
-  }
-  
-  .fixed-column-actions {
-    width: 180px !important;
-    min-width: 180px !important;
-  }
-  
-  /* 弹性列 */
-  .flex-column-title {
-    min-width: 200px !important;
-    max-width: 300px !important;
-  }
-  
-  .flex-column-author {
-    min-width: 150px !important;
-    max-width: 200px !important;
-  }
-  
-  /* 表格内容对齐优化 */
-  .table-cell-center {
-    text-align: center !important;
-  }
-  
-  .table-cell-right {
-    text-align: right !important;
+  .video-table-desktop {
+    font-size: 13px;
+    
+    /* 增强表格行悬停效果 */
+    .el-table__row {
+      &:hover {
+        background-color: rgba(37, 244, 238, 0.08) !important;
+        
+        /* 悬停时数字计数使用主色调 */
+        .dy-admin-list-count {
+          color: #FE2C55 !important;
+        }
+        
+        /* 悬停时状态标签增强效果 */
+        .el-tag {
+          opacity: 0.9;
+          transform: scale(1.05);
+          transition: all 0.2s ease;
+        }
+      }
+    }
   }
 }
 
-/* 平板端优化 (768px - 1024px) */
+/* 平板优化 (768px - 1024px) */
 @media (min-width: 768px) and (max-width: 1024px) {
   .video-table-tablet {
     min-height: 500px;
     max-height: calc(100vh - 280px);
-  }
-  
-  /* 隐藏次要列 */
-  .hide-on-tablet {
-    display: none !important;
-  }
-  
-  /* 调整列宽 */
-  .tablet-column-title {
-    min-width: 180px !important;
-  }
-  
-  .tablet-column-cover {
-    width: 100px !important;
-    min-width: 100px !important;
+    
+    /* 平板端悬停效果简化 */
+    .el-table__row {
+      &:hover {
+        background-color: rgba(37, 244, 238, 0.05) !important;
+      }
+    }
   }
 }
 
@@ -81,13 +48,25 @@
     max-height: calc(100vh - 320px);
   }
   
-  /* 移动端卡片式布局 */
+  /* 移动端卡片式悬停效果 */
   .mobile-card-view {
     background: var(--dy-bg-container);
     border-radius: 12px;
     padding: 16px;
     margin-bottom: 12px;
     border: var(--dy-border-default);
+    transition: all 0.3s ease;
+    
+    &:hover {
+      border-color: rgba(254, 44, 85, 0.3) !important;
+      background: rgba(37, 244, 238, 0.03) !important;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    &:active {
+      transform: translateY(0);
+    }
   }
   
   .mobile-card-header {
@@ -103,6 +82,14 @@
     border-radius: 6px;
     overflow: hidden;
     flex-shrink: 0;
+    
+    &:hover {
+      cursor: pointer;
+      
+      img {
+        transform: scale(1.05);
+      }
+    }
   }
   
   .mobile-card-info {
@@ -132,18 +119,30 @@
   position: relative;
 }
 
-/* 表格固定头部 */
+/* 表格固定头部增强 */
 .table-sticky-header {
   position: sticky;
   top: 0;
   z-index: 10;
   background: var(--dy-bg-elevated) !important;
+  
+  /* 增强表头悬停效果 */
+  &:hover {
+    background: rgba(37, 244, 238, 0.1) !important;
+  }
 }
 
 /* 表格行悬停效果优化 */
 .table-row-hover-effect:hover {
-  background: var(--dy-bg-hover) !important;
+  background: rgba(37, 244, 238, 0.08) !important;
   transition: background-color 0.2s ease;
+  
+  /* 确保悬停行内的文本保持高对比度 */
+  .el-table__cell {
+    .cell, span, div {
+      color: rgba(255, 255, 255, 0.95) !important;
+    }
+  }
 }
 
 /* 表格单元格内容优化 */
@@ -151,6 +150,13 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  
+  /* 增强悬停效果 */
+  &:hover {
+    .table-cell-ellipsis {
+      color: #25F4EE !important;
+    }
+  }
 }
 
 .table-cell-ellipsis {
@@ -158,9 +164,23 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
+  transition: color 0.2s ease;
+  
+  /* 确保长文本悬停时显示完整 */
+  &:hover {
+    white-space: normal;
+    overflow: visible;
+    z-index: 100;
+    position: relative;
+    background: var(--dy-bg-elevated);
+    padding: 4px 8px;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    color: rgba(255, 255, 255, 0.98) !important;
+  }
 }
 
-/* 表格分页优化 */
+/* 表格分页悬停优化 */
 .table-pagination-optimized {
   position: sticky;
   bottom: 0;
@@ -168,4 +188,16 @@
   padding: 12px;
   border-top: var(--dy-border-default);
   z-index: 5;
+  
+  /* 分页按钮悬停效果 */
+  .el-pagination {
+    button:hover:not(:disabled) {
+      background-color: rgba(37, 244, 238, 0.1) !important;
+    }
+    
+    .el-pager li:hover:not(.active) {
+      background-color: rgba(37, 244, 238, 0.1) !important;
+      color: #25F4EE !important;
+    }
+  }
 }
