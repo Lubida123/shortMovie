@@ -1,10 +1,13 @@
 ﻿<script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { getVideoList } from '../api/video'
+import { getVideoList, getVideoDetail } from '../api/video'
 
 const emit = defineEmits(['load-more', 'comment-like', 'comment-reply'])
 const router = useRouter()
+
+const CACHE_KEY = 'video_feed_cache_v1'
+const CACHE_TTL = 5 * 60 * 1000
 
 const videos = ref([])
 const currentIndex = ref(0)
@@ -22,6 +25,9 @@ const currentTimes = ref({})
 const durations = ref({})
 const isSeeking = ref(false)
 const seekingIndex = ref(null)
+const seekWasPlaying = ref(false)
+let pendingSeekTime = 0
+const retryLoading = ref({})
 const showComments = ref(false)
 const newComment = ref('')
 const replyTo = ref(null)
@@ -102,7 +108,7 @@ const normalizeVideo = (item) => {
     title: item.title || item.videoTitle || '未命名视频',
     author: authorName.startsWith('@') ? authorName : `@${authorName}`,
     authorName,
-    authorId: item.authorId || item.userId || item.uid || item.userID,
+    authorId: item.authorId ?? item.userId ?? item.uid ?? item.userID,
     authorAvatar: item.authorAvatar || item.avatar || '',
     desc: item.description || item.desc || '',
     duration: formatDuration(item.duration || 0),
@@ -111,6 +117,8 @@ const normalizeVideo = (item) => {
     likeCount: item.likeCount ?? 0,
     commentCount: item.commentCount ?? 0,
     collectCount: item.collectCount ?? 0,
+    retryCount: 0,
+    error: false,
   }
 }
 
@@ -118,6 +126,52 @@ const extractPageList = (payload) => {
   const pageData = payload?.data ?? payload
   const list = pageData?.records ?? pageData?.list ?? []
   return Array.isArray(list) ? list : []
+}
+
+const hasSignedUrl = (list) =>
+  list.some((item) => typeof item?.url === 'string' && item.url.includes('?'))
+
+const hydrateFromCache = () => {
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY)
+    if (!raw) return false
+    const cached = JSON.parse(raw)
+    if (!cached?.videos || !Array.isArray(cached.videos)) return false
+    if (hasSignedUrl(cached.videos)) {
+      sessionStorage.removeItem(CACHE_KEY)
+      return false
+    }
+    if (Date.now() - (cached.ts || 0) > CACHE_TTL) return false
+    videos.value = cached.videos
+    pageNum.value = cached.pageNum || 1
+    hasMore.value = cached.hasMore ?? true
+    currentIndex.value = Math.min(cached.currentIndex || 0, Math.max(cached.videos.length - 1, 0))
+    loadError.value = ''
+    return true
+  } catch (error) {
+    return false
+  }
+}
+
+const persistCache = () => {
+  try {
+    if (hasSignedUrl(videos.value)) {
+      sessionStorage.removeItem(CACHE_KEY)
+      return
+    }
+    sessionStorage.setItem(
+      CACHE_KEY,
+      JSON.stringify({
+        ts: Date.now(),
+        videos: videos.value,
+        pageNum: pageNum.value,
+        hasMore: hasMore.value,
+        currentIndex: currentIndex.value,
+      })
+    )
+  } catch (error) {
+    // ignore cache errors
+  }
 }
 
 const fetchVideos = async () => {
@@ -144,6 +198,7 @@ const fetchVideos = async () => {
     }
     videos.value.push(...mapped)
     pageNum.value += 1
+    persistCache()
   } catch (error) {
     const status = error?.response?.status
     if (status === 401) {
@@ -178,6 +233,54 @@ const syncPlayback = async (index) => {
     }
   })
   updateTimeFromVideo(index)
+}
+
+const refreshVideoSource = async (video) => {
+  if (!video?.id) return false
+  try {
+    const { data } = await getVideoDetail(video.id)
+    if (data?.code !== 200) return false
+    const detail = data?.data || {}
+    const nextUrl = detail.videoUrl || detail.url || video.url
+    const nextCover = detail.coverUrl || detail.cover || video.cover
+    if (nextUrl) {
+      video.url = nextUrl
+    }
+    if (nextCover) {
+      video.cover = nextCover
+    }
+    video.error = false
+    return true
+  } catch (error) {
+    return false
+  }
+}
+
+const handleVideoError = async (video) => {
+  if (!video) return
+  if (!Number.isFinite(video.retryCount)) {
+    video.retryCount = 0
+  }
+  if (video.retryCount >= 1) {
+    video.error = true
+    return
+  }
+  video.retryCount += 1
+  const refreshed = await refreshVideoSource(video)
+  if (!refreshed) {
+    video.error = true
+  }
+}
+
+const retryVideo = async (video) => {
+  if (!video || !video.id) return
+  retryLoading.value[video.id] = true
+  video.retryCount = 0
+  const refreshed = await refreshVideoSource(video)
+  if (!refreshed) {
+    video.error = true
+  }
+  retryLoading.value[video.id] = false
 }
 
 const setVideoRef = (el, index) => {
@@ -227,37 +330,59 @@ const togglePlay = (index) => {
   }
 }
 
-const updateSeek = (index, event) => {
+const updateSeekPreview = (index, event) => {
   const bar = progressRefs.value[index]
   const video = videoRefs.value[index]
   if (!bar || !video) return
   const rect = bar.getBoundingClientRect()
   if (!rect.width) return
   const percent = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width))
-  if (Number.isFinite(video.duration) && video.duration > 0) {
-    video.currentTime = video.duration * percent
-  }
-  currentTimes.value[index] = video.currentTime || 0
+  const duration = Number.isFinite(video.duration) ? video.duration : durations.value[index] || 0
+  pendingSeekTime = duration > 0 ? duration * percent : 0
+  currentTimes.value[index] = pendingSeekTime
 }
 
 const handleSeekMove = (event) => {
   if (!isSeeking.value || seekingIndex.value === null) return
-  updateSeek(seekingIndex.value, event)
+  updateSeekPreview(seekingIndex.value, event)
 }
 
 const handleSeekEnd = () => {
   if (!isSeeking.value) return
+  const index = seekingIndex.value
+  const video = index !== null ? videoRefs.value[index] : null
+  if (video && Number.isFinite(pendingSeekTime)) {
+    if (typeof video.fastSeek === 'function') {
+      video.fastSeek(pendingSeekTime)
+    } else {
+      video.currentTime = pendingSeekTime
+    }
+    currentTimes.value[index] = video.currentTime || pendingSeekTime
+    if (seekWasPlaying.value) {
+      const result = video.play()
+      if (result && typeof result.catch === 'function') {
+        result.catch(() => {})
+      }
+    }
+  }
   isSeeking.value = false
   seekingIndex.value = null
+  seekWasPlaying.value = false
   window.removeEventListener('pointermove', handleSeekMove)
   window.removeEventListener('pointerup', handleSeekEnd)
 }
 
 const handleSeekStart = (index, event) => {
   if (!progressRefs.value[index]) return
+  const video = videoRefs.value[index]
   isSeeking.value = true
   seekingIndex.value = index
-  updateSeek(index, event)
+  pendingSeekTime = currentTimes.value[index] || 0
+  seekWasPlaying.value = video ? !video.paused : false
+  if (video && !video.paused) {
+    video.pause()
+  }
+  updateSeekPreview(index, event)
   window.addEventListener('pointermove', handleSeekMove)
   window.addEventListener('pointerup', handleSeekEnd)
 }
@@ -307,6 +432,13 @@ const sendComment = () => {
     liked: false,
     avatar: defaultAvatar,
   })
+  if (currentVideo.value) {
+    if (Number.isFinite(currentVideo.value.commentCount)) {
+      currentVideo.value.commentCount += 1
+    } else {
+      currentVideo.value.commentCount = currentComments.value.length
+    }
+  }
   newComment.value = ''
   replyTo.value = null
 }
@@ -350,18 +482,13 @@ const handleWheel = (e) => {
   }
 }
 
-const getAuthorKey = (video) => {
-  if (video.authorId !== undefined && video.authorId !== null && video.authorId !== '') {
-    return video.authorId
-  }
-  return video.authorName || video.author || 'unknown'
-}
+const getAuthorKey = (video) => video.authorId ?? video.authorName ?? video.author ?? 'unknown'
 
 const openCreatorProfile = (video) => {
   const authorKey = getAuthorKey(video)
   const works = videos.value.filter((item) => getAuthorKey(item) === authorKey)
   const payload = {
-    id: video.authorId || authorKey,
+    id: video.authorId ?? authorKey,
     name: video.authorName || video.author || '匿名',
     account: video.author || `@${video.authorName || 'unknown'}`,
     avatar: video.authorAvatar || defaultAvatar,
@@ -396,7 +523,10 @@ const toggleFullscreen = async () => {
 }
 
 onMounted(() => {
-  fetchVideos()
+  const restored = hydrateFromCache()
+  if (!restored || videos.value.length === 0) {
+    fetchVideos()
+  }
   document.addEventListener('fullscreenchange', handleFullscreenChange)
 })
 
@@ -406,6 +536,7 @@ watch(
     if (videos.value.length) {
       syncPlayback(index)
     }
+    persistCache()
     showComments.value = false
     replyTo.value = null
     newComment.value = ''
@@ -459,11 +590,23 @@ onBeforeUnmount(() => {
               autoplay
               loop
               playsinline
-              preload="metadata"
+              :preload="index === currentIndex ? 'auto' : 'metadata'"
               :ref="(el) => setVideoRef(el, index)"
               @timeupdate="handleTimeUpdate(index, $event)"
               @loadedmetadata="handleLoadedMetadata(index, $event)"
+              @error="handleVideoError(video)"
             ></video>
+            <div v-if="video.error" class="video-error">
+              <div class="video-error-title">Video unavailable</div>
+              <div class="video-error-sub">请稍后再试</div>
+              <button
+                class="video-error-btn"
+                :disabled="retryLoading[video.id]"
+                @click.stop="retryVideo(video)"
+              >
+                {{ retryLoading[video.id] ? '重试中...' : '重试' }}
+              </button>
+            </div>
             <div class="player-info">
               <div class="player-author" @click.stop="openCreatorProfile(video)">
                 <img class="avatar" :src="video.authorAvatar || defaultAvatar" alt="avatar" />
@@ -633,6 +776,44 @@ onBeforeUnmount(() => {
   height: 100%;
   object-fit: cover;
   z-index: 0;
+}
+
+.video-error {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 2;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  text-align: center;
+}
+
+.video-error-title {
+  font-size: 16rem;
+  font-weight: 600;
+}
+
+.video-error-sub {
+  font-size: 12rem;
+  color: rgba(226, 232, 240, 0.8);
+  margin-top: 6rem;
+}
+
+.video-error-btn {
+  margin-top: 14rem;
+  border: none;
+  border-radius: 999rem;
+  padding: 8rem 16rem;
+  background: linear-gradient(120deg, #f43f5e, #fb7185);
+  color: #0b0d16;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.video-error-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .player-cover::before {
