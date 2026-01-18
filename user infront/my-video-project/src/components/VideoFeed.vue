@@ -9,6 +9,7 @@ const currentIndex = ref(0)
 const isSwitching = ref(false)
 const loading = ref(false)
 const hasMore = ref(true)
+const loadError = ref('')
 const pageNum = ref(1)
 const pageSize = 8
 let switchTimer = null
@@ -50,24 +51,34 @@ const extractPageList = (payload) => {
 const fetchVideos = async () => {
   if (loading.value || !hasMore.value) return
   loading.value = true
+  loadError.value = ''
   try {
     const { data } = await getVideoList({
       pageNum: pageNum.value,
       pageSize,
     })
     if (data?.code !== undefined && data?.code !== 200) {
+      loadError.value = data?.message || '加载失败'
       return
     }
     const list = extractPageList(data)
     const mapped = list.map(normalizeVideo).filter((item) => item && item.id)
     if (mapped.length === 0) {
+      if (videos.value.length === 0) {
+        loadError.value = '暂无视频数据'
+      }
       hasMore.value = false
       return
     }
     videos.value.push(...mapped)
     pageNum.value += 1
   } catch (error) {
-    // keep silent to avoid blocking UX
+    const status = error?.response?.status
+    if (status === 401) {
+      loadError.value = '请先登录后查看推荐'
+    } else {
+      loadError.value = '加载失败，请检查后端服务'
+    }
   } finally {
     loading.value = false
   }
@@ -125,11 +136,22 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="feed-container" @wheel="handleWheel">
-    <div v-if="videos.length === 0" class="empty-state">暂无视频</div>
+    <div v-if="loadError" class="empty-state">{{ loadError }}</div>
+    <div v-else-if="videos.length === 0" class="empty-state">暂无视频</div>
     <div v-else class="video-wrapper" :style="wrapperStyle">
       <article v-for="(video, index) in videos" :key="video.id" class="video-item">
         <div class="player-frame">
           <div class="player-cover" :style="{ backgroundImage: `url(${video.cover})` }">
+            <video
+              v-if="video.url"
+              class="video-el"
+              :src="video.url"
+              :poster="video.cover"
+              muted
+              autoplay
+              loop
+              playsinline
+            ></video>
             <div class="player-overlay">
               <div class="player-meta">
                 <span>#city-story</span>
@@ -242,6 +264,15 @@ onBeforeUnmount(() => {
   border: var(--dy-border-default);
 }
 
+.video-el {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
 .player-cover::before {
   content: "";
   position: absolute;
@@ -250,6 +281,7 @@ onBeforeUnmount(() => {
   filter: blur(30px);
   transform: scale(1.1);
   opacity: 0.6;
+  z-index: 0;
 }
 
 .player-overlay {

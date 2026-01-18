@@ -332,8 +332,14 @@ onMounted(() => {
   justify-content: center;
   flex: 1;
   min-height: 0;
-  height: 0;
+  height: 100%;
   overflow: hidden;
+  align-items: stretch;
+}
+
+.video-shell > :deep(.feed-container) {
+  height: 100%;
+  width: 100%;
 }
 
 @media (max-width: 980px) {
