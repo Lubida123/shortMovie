@@ -1,7 +1,7 @@
 ﻿<script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, defineAsyncComponent } from 'vue'
 import { useUserStore } from '../store/userStore'
-import VideoFeed from '../components/VideoFeed.vue'
+const VideoFeed = defineAsyncComponent(() => import('../components/VideoFeed.vue'))
 
 const userStore = useUserStore()
 const displayName = computed(
@@ -103,7 +103,7 @@ onMounted(() => {
       size="large"
       class="upload-btn fixed bottom-20 right-4 z-50 shadow-lg border-none bg-gradient-to-r from-pink-500 to-red-500 hover:from-pink-600 hover:to-red-600 text-white"
     >
-      <el-icon :size="24"><Plus /></el-icon>
+      <span class="plus-icon">+</span>
     </el-button>
   </div>
 </template>
@@ -332,7 +332,6 @@ onMounted(() => {
   justify-content: center;
   flex: 1;
   min-height: 0;
-  height: 100%;
   overflow: hidden;
   align-items: stretch;
 }
@@ -340,6 +339,12 @@ onMounted(() => {
 .video-shell > :deep(.feed-container) {
   height: 100%;
   width: 100%;
+}
+
+.plus-icon {
+  font-size: 24rem;
+  font-weight: 600;
+  line-height: 1;
 }
 
 @media (max-width: 980px) {

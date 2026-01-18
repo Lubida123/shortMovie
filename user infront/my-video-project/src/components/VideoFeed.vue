@@ -28,14 +28,17 @@ const formatDuration = (seconds) => {
 const normalizeVideo = (item) => {
   if (!item) return null
   const authorName = item.authorName || item.author || '匿名'
+  const cover = item.coverUrl || item.cover || ''
+  const url = item.videoUrl || item.url || ''
+  if (!cover && !url) return null
   return {
     id: item.videoId || item.id,
     title: item.title || item.videoTitle || '未命名视频',
     author: authorName.startsWith('@') ? authorName : `@${authorName}`,
     desc: item.description || item.desc || '',
     duration: formatDuration(item.duration || 0),
-    cover: item.coverUrl || '',
-    url: item.videoUrl || '',
+    cover,
+    url,
     likeCount: item.likeCount ?? 0,
     commentCount: item.commentCount ?? 0,
     collectCount: item.collectCount ?? 0,
@@ -250,6 +253,7 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
   display: grid;
+  grid-template-rows: 1fr auto;
   gap: 12rem;
 }
 
@@ -257,7 +261,8 @@ onBeforeUnmount(() => {
   position: relative;
   border-radius: 18rem;
   overflow: hidden;
-  flex: 1;
+  height: 100%;
+  min-height: 0;
   background-position: center;
   background-size: cover;
   box-shadow: 0 24rem 60rem rgba(0, 0, 0, 0.45);
@@ -274,14 +279,7 @@ onBeforeUnmount(() => {
 }
 
 .player-cover::before {
-  content: "";
-  position: absolute;
-  inset: -20rem;
-  background: inherit;
-  filter: blur(30px);
-  transform: scale(1.1);
-  opacity: 0.6;
-  z-index: 0;
+  content: none;
 }
 
 .player-overlay {
@@ -291,7 +289,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  background: linear-gradient(180deg, rgba(12, 13, 18, 0.2), rgba(12, 13, 18, 0.8));
+  background: transparent;
   z-index: 1;
 }
 
