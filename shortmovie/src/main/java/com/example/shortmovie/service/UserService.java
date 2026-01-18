@@ -1,5 +1,6 @@
 package com.example.shortmovie.service;
 
+import com.example.shortmovie.dto.ChangePasswordDTO;
 import com.example.shortmovie.dto.UserLoginDTO;
 import com.example.shortmovie.dto.UserRegisterDTO;
 import com.example.shortmovie.dto.UserUpdateDTO;
@@ -51,4 +52,11 @@ public interface UserService {
      * @param dto 更新信息
      */
     void updateProfile(Long userId, UserUpdateDTO dto);
+    
+    /**
+     * 修改密码
+     * @param userId 用户ID
+     * @param dto 修改密码信息
+     */
+    void changePassword(Long userId, ChangePasswordDTO dto);
 }

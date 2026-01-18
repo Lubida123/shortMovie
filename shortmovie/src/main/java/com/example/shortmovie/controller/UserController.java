@@ -1,5 +1,6 @@
 package com.example.shortmovie.controller;
 
+import com.example.shortmovie.dto.ChangePasswordDTO;
 import com.example.shortmovie.dto.UserLoginDTO;
 import com.example.shortmovie.dto.UserRegisterDTO;
 import com.example.shortmovie.dto.UserUpdateDTO;
@@ -14,6 +15,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 /**
  * 用户控制器
  */
+@Slf4j
 @Tag(name = "用户接口", description = "用户注册、登录、信息管理相关接口")
 @RestController
 @RequestMapping("/api/user")
@@ -95,6 +98,22 @@ public class UserController {
     }
     
     /**
+     * 用户退出登录
+     */
+    @Operation(summary = "退出登录", description = "用户退出登录接口（前端需清除本地存储的 token）")
+    @PostMapping("/logout")
+    public R<Void> logout() {
+        // 由于使用的是无状态的 JWT，服务端不需要做任何处理
+        // 前端只需要删除本地存储的 token 即可
+        // 如果需要实现 token 黑名单功能，可以在这里将 token 加入 Redis 黑名单
+        
+        Long userId = getCurrentUserId();
+        log.info("User logged out: userId={}", userId);
+        
+        return R.ok();
+    }
+    
+    /**
      * 发送邮箱验证码
      */
     @Operation(summary = "发送邮箱验证码", description = "向指定邮箱发送验证码，验证码有效期5分钟")
@@ -146,6 +165,31 @@ public class UserController {
         
         Long userId = getCurrentUserId();
         userService.updateProfile(userId, dto);
+        return R.ok();
+    }
+    
+    /**
+     * 修改密码
+     */
+    @Operation(summary = "修改密码", description = "修改当前登录用户的密码，需要提供旧密码和新密码")
+    @PutMapping("/password")
+    public R<Void> changePassword(
+            @Parameter(description = "旧密码", required = true)
+            @NotBlank(message = "旧密码不能为空")
+            @RequestParam String oldPassword,
+            
+            @Parameter(description = "新密码", required = true)
+            @NotBlank(message = "新密码不能为空")
+            @RequestParam String newPassword) {
+        
+        // 构建 DTO 对象
+        ChangePasswordDTO dto = new ChangePasswordDTO();
+        dto.setOldPassword(oldPassword);
+        dto.setNewPassword(newPassword);
+        
+        Long userId = getCurrentUserId();
+        userService.changePassword(userId, dto);
+        
         return R.ok();
     }
     
