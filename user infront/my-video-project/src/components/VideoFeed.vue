@@ -1,162 +1,135 @@
 ﻿<script setup>
-import { ref, watch, onBeforeUnmount } from 'vue'
-import { Swiper, SwiperSlide } from 'swiper/vue'
-import { Mousewheel, Pagination } from 'swiper/modules'
-import { getVideoList, likeVideo, unlikeVideo, collectVideo, uncollectVideo } from '../api/video' // 引入接口
-import { ElMessage } from 'element-plus'
-import { useUserStore } from '../store/userStore' // 引入用户状态，用于判断是否登录
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { getVideoList } from '../api/video'
 
-const modules = [Mousewheel, Pagination]
-const userStore=userStore()
 const emit = defineEmits(['load-more'])
-const props = defineProps({
-  hasMore: {
-    type: Boolean,
-    default: true,
-  },
-})
-const swiperRef = ref(null)
-const isScrolling = ref(false)
-let scrollTimer = null
 
-const videos = ref([
- /* {
-    id: 'v-1',
-    title: 'Harbor Letter',
-    author: '@luxiao',
-    desc: 'Street light and voices at the end of the road.',
-    duration: '00:28',
-    cover: new URL('../assets/img/poster/1.jpg', import.meta.url).href,
-  },
-  {
-    id: 'v-2',
-    title: 'Metro End',
-    author: '@chen',
-    desc: 'Ambient sound and human whispers underground.',
-    duration: '00:24',
-    cover: new URL('../assets/img/poster/3.jpg', import.meta.url).href,
-  },*/
-])
+const videos = ref([])
+const currentIndex = ref(0)
+const isSwitching = ref(false)
+const loading = ref(false)
+const hasMore = ref(true)
+const pageNum = ref(1)
+const pageSize = 8
+let switchTimer = null
 
-// --- 1. 获取视频列表 ---
-const fetchVideos = async () => {
-  try {
-    const res = await getVideoList({ pageNum: 1, pageSize: 10 })
-    if (res.data && res.data.records) {
-      // 数据映射：将后端字段映射为前端需要的格式
-      videos.value = res.data.records.map(v => ({
-        id: v.id,
-        title: v.title,
-        author: '@' + v.authorName, // 假设后端返回 authorName
-        desc: v.description,
-        // 如果后端返回秒数 duration，格式化为 mm:ss
-        duration: formatDuration(v.duration || 0), 
-        cover: v.coverUrl, // 使用后端返回的 COS 链接
-        url: v.videoUrl,   // 视频地址
-        likeCount: v.likeCount || 0,
-        commentCount: v.commentCount || 0,
-        collectCount: v.collectCount || 0,
-        isLiked: v.isLiked || false,
-        isCollected: v.isCollected || false
-      }))
-    }
-  } catch (error) {
-    console.error('获取视频失败', error)
-  }
-}
+const wrapperStyle = computed(() => ({
+  transform: `translateY(-${currentIndex.value * 100}%)`,
+}))
 
-// 辅助函数：秒转 mm:ss
 const formatDuration = (seconds) => {
-  const m = Math.floor(seconds / 60).toString().padStart(2, '0')
-  const s = (seconds % 60).toString().padStart(2, '0')
+  const safe = Number.isFinite(seconds) ? seconds : 0
+  const m = Math.floor(safe / 60).toString().padStart(2, '0')
+  const s = Math.floor(safe % 60).toString().padStart(2, '0')
   return `${m}:${s}`
 }
 
-const activeIndex = ref(0)
-const isFullscreen = ref(false)
-
-const handleSlideChange = (swiper) => {
-  activeIndex.value = swiper.activeIndex
-}
-
-const handleSwiper = (swiper) => {
-  swiperRef.value = swiper
-}
-
-const maybeLoadMore = (nextIndex) => {
-  if (!props.hasMore) return
-  if (nextIndex >= videos.value.length - 2) {
-    emit('load-more')
+const normalizeVideo = (item) => {
+  if (!item) return null
+  const authorName = item.authorName || item.author || '匿名'
+  return {
+    id: item.videoId || item.id,
+    title: item.title || item.videoTitle || '未命名视频',
+    author: authorName.startsWith('@') ? authorName : `@${authorName}`,
+    desc: item.description || item.desc || '',
+    duration: formatDuration(item.duration || 0),
+    cover: item.coverUrl || '',
+    url: item.videoUrl || '',
+    likeCount: item.likeCount ?? 0,
+    commentCount: item.commentCount ?? 0,
+    collectCount: item.collectCount ?? 0,
   }
 }
 
-const playNext = () => {
-  const nextIndex = activeIndex.value + 1
-  if (nextIndex >= videos.value.length) {
-    if (props.hasMore) {
-      emit('load-more')
+const extractPageList = (payload) => {
+  const pageData = payload?.data ?? payload
+  const list = pageData?.records ?? pageData?.list ?? []
+  return Array.isArray(list) ? list : []
+}
+
+const fetchVideos = async () => {
+  if (loading.value || !hasMore.value) return
+  loading.value = true
+  try {
+    const { data } = await getVideoList({
+      pageNum: pageNum.value,
+      pageSize,
+    })
+    if (data?.code !== undefined && data?.code !== 200) {
+      return
+    }
+    const list = extractPageList(data)
+    const mapped = list.map(normalizeVideo).filter((item) => item && item.id)
+    if (mapped.length === 0) {
+      hasMore.value = false
+      return
+    }
+    videos.value.push(...mapped)
+    pageNum.value += 1
+  } catch (error) {
+    // keep silent to avoid blocking UX
+  } finally {
+    loading.value = false
+  }
+}
+
+const loadMoreIfNeeded = async () => {
+  if (!hasMore.value || loading.value) return
+  emit('load-more')
+  await fetchVideos()
+}
+
+const goNext = () => {
+  if (currentIndex.value < videos.value.length - 1) {
+    currentIndex.value += 1
+    if (currentIndex.value >= videos.value.length - 2) {
+      loadMoreIfNeeded()
     }
     return
   }
-  swiperRef.value?.slideTo(nextIndex)
-  maybeLoadMore(nextIndex)
+  loadMoreIfNeeded()
 }
 
-const playPrev = () => {
-  const prevIndex = activeIndex.value - 1
-  if (prevIndex < 0) return
-  swiperRef.value?.slideTo(prevIndex)
+const goPrev = () => {
+  if (currentIndex.value <= 0) return
+  currentIndex.value -= 1
 }
 
 const handleWheel = (e) => {
-  if (isScrolling.value) return
-  if (!swiperRef.value) return
-  isScrolling.value = true
-  scrollTimer = window.setTimeout(() => {
-    isScrolling.value = false
+  if (isSwitching.value) return
+  if (!videos.value.length) return
+  if (e.deltaY === 0) return
+  isSwitching.value = true
+  switchTimer = window.setTimeout(() => {
+    isSwitching.value = false
   }, 800)
+
   if (e.deltaY > 0) {
-    playNext()
+    goNext()
   } else if (e.deltaY < 0) {
-    playPrev()
+    goPrev()
   }
 }
 
-const toggleFullscreen = () => {
-  isFullscreen.value = !isFullscreen.value
-}
-
-watch(isFullscreen, (value) => {
-  document.body.classList.toggle('dy-fullscreen', value)
+onMounted(() => {
+  fetchVideos()
 })
 
 onBeforeUnmount(() => {
-  document.body.classList.remove('dy-fullscreen')
-  if (scrollTimer) {
-    window.clearTimeout(scrollTimer)
-    scrollTimer = null
+  if (switchTimer) {
+    window.clearTimeout(switchTimer)
+    switchTimer = null
   }
 })
 </script>
 
 <template>
-  <section class="dy-player" :class="{ fullscreen: isFullscreen }" @wheel.passive="handleWheel">
-    <swiper
-      class="dy-swiper"
-      :modules="modules"
-      direction="vertical"
-      :mousewheel="true"
-      :pagination="{ clickable: true }"
-      @swiper="handleSwiper"
-      @slide-change="handleSlideChange"
-    >
-      <swiper-slide v-for="(video, index) in videos" :key="video.id">
+  <section class="feed-container" @wheel="handleWheel">
+    <div v-if="videos.length === 0" class="empty-state">暂无视频</div>
+    <div v-else class="video-wrapper" :style="wrapperStyle">
+      <article v-for="(video, index) in videos" :key="video.id" class="video-item">
         <div class="player-frame">
-          <div
-            class="player-cover"
-            :style="{ backgroundImage: `url(${video.cover})` }"
-            @dblclick="toggleFullscreen"
-          >
+          <div class="player-cover" :style="{ backgroundImage: `url(${video.cover})` }">
             <div class="player-overlay">
               <div class="player-meta">
                 <span>#city-story</span>
@@ -170,7 +143,10 @@ onBeforeUnmount(() => {
               <div class="player-progress">
                 <span>00:00</span>
                 <div class="progress-bar">
-                  <div class="progress-fill" :style="{ width: index === activeIndex ? '35%' : '0%' }"></div>
+                  <div
+                    class="progress-fill"
+                    :style="{ width: index === currentIndex ? '35%' : '0%' }"
+                  ></div>
                 </div>
                 <span>{{ video.duration }}</span>
               </div>
@@ -179,67 +155,78 @@ onBeforeUnmount(() => {
             <div class="player-actions">
               <button class="action">
                 <img src="../assets/img/icon/love.svg" alt="like" />
-                <span>446.9K</span>
+                <span>{{ video.likeCount }}</span>
               </button>
               <button class="action">
                 <img src="../assets/img/icon/message.svg" alt="comment" />
-                <span>59K</span>
+                <span>{{ video.commentCount }}</span>
               </button>
               <button class="action">
                 <img src="../assets/img/icon/star-white.png" alt="collect" />
-                <span>144K</span>
+                <span>{{ video.collectCount }}</span>
               </button>
               <button class="action">
                 <img src="../assets/img/icon/share-white.png" alt="share" />
-                <span>385K</span>
-              </button>
-              <button class="action" @click="toggleFullscreen">
-                <img src="../assets/img/icon/rotate.svg" alt="fullscreen" />
-                <span>{{ isFullscreen ? 'Exit' : 'Full' }}</span>
+                <span>分享</span>
               </button>
             </div>
 
             <div class="player-user">
               <img class="avatar" src="../assets/img/avatar.png" alt="avatar" />
               <div>
-                <div class="author">@卢昱晓</div>
-                <div class="caption">所以你叫什么名字 · #2026</div>
+                <div class="author">{{ video.author }}</div>
+                <div class="caption">{{ video.title }}</div>
               </div>
             </div>
           </div>
           <div class="player-footer">
-            <span>Reason: city mood + blue tone</span>
-            <span>下一条：海边夏夜 · 00:24</span>
+            <span>Reason: recommended</span>
+            <span>下一条：{{ videos[index + 1]?.title || '暂无' }}</span>
           </div>
         </div>
-      </swiper-slide>
-    </swiper>
-
-    <div class="float-buttons">
-      <button title="Up">
-        <img src="../assets/img/icon/arrow-up.png" alt="up" />
-      </button>
-      <button title="Down">
-        <img src="../assets/img/icon/next.svg" alt="down" />
-      </button>
+      </article>
     </div>
   </section>
 </template>
 
 <style scoped lang="less">
-.dy-player {
+.feed-container {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
   position: relative;
-  display: grid;
-  place-items: center;
 }
 
-.dy-swiper {
-  width: min(1200rem, 100%);
-  height: 680rem;
+.video-wrapper {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.6s ease;
+  will-change: transform;
+}
+
+.video-item {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16rem;
+  box-sizing: border-box;
+}
+
+.empty-state {
+  height: 100%;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--dy-text-tertiary);
 }
 
 .player-frame {
   width: 100%;
+  height: 100%;
   display: grid;
   gap: 12rem;
 }
@@ -248,13 +235,11 @@ onBeforeUnmount(() => {
   position: relative;
   border-radius: 18rem;
   overflow: hidden;
-  min-height: 560rem;
+  flex: 1;
   background-position: center;
   background-size: cover;
   box-shadow: 0 24rem 60rem rgba(0, 0, 0, 0.45);
-  cursor: pointer;
   border: var(--dy-border-default);
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .player-cover::before {
@@ -265,11 +250,6 @@ onBeforeUnmount(() => {
   filter: blur(30px);
   transform: scale(1.1);
   opacity: 0.6;
-}
-
-.player-cover:hover {
-  transform: translateY(-4rem);
-  box-shadow: 0 30rem 70rem rgba(0, 0, 0, 0.55);
 }
 
 .player-overlay {
@@ -402,74 +382,14 @@ onBeforeUnmount(() => {
   color: var(--dy-text-tertiary);
 }
 
-.float-buttons {
-  position: absolute;
-  right: 18rem;
-  top: 50%;
-  transform: translateY(-50%);
-  display: grid;
-  gap: 10rem;
-}
-
-.float-buttons button {
-  border: none;
-  width: 36rem;
-  height: 36rem;
-  border-radius: 50%;
-  background: rgba(18, 20, 30, 0.9);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  box-shadow: 0 8rem 20rem rgba(0, 0, 0, 0.35);
-  transition: transform 0.2s ease, background 0.2s ease;
-}
-
-.float-buttons button:hover {
-  transform: translateY(-2rem);
-  background: rgba(28, 32, 48, 0.9);
-}
-
-.float-buttons img {
-  width: 16rem;
-}
-
-.dy-player.fullscreen {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.96);
-  z-index: 999;
-  padding: 20rem;
-}
-
-.dy-player.fullscreen .dy-swiper {
-  height: calc(100vh - 40rem);
-  width: min(1400rem, 100%);
-}
-
-.dy-player.fullscreen .player-cover {
-  min-height: calc(100vh - 140rem);
-}
-
 @media (max-width: 980px) {
-  .dy-swiper {
-    height: 520rem;
-  }
-
-  .player-cover {
-    min-height: 420rem;
-  }
-
   .player-actions {
     position: static;
-    grid-template-columns: repeat(5, minmax(80rem, 1fr));
+    grid-template-columns: repeat(4, minmax(80rem, 1fr));
     background: rgba(18, 20, 30, 0.7);
     padding: 10rem;
     border-radius: 14rem;
     margin-top: 12rem;
-  }
-
-  .float-buttons {
-    display: none;
   }
 }
 </style>

@@ -110,12 +110,13 @@ onMounted(() => {
 
 <style scoped lang="less">
 .dy-home {
-  min-height: 100vh;
+  height: 100vh;
   display: grid;
   grid-template-columns: 240rem 1fr;
   background: var(--dy-bg-body);
   color: var(--dy-text-primary);
   position: relative;
+  overflow: hidden;
 }
 
 .dy-home::before,
@@ -203,8 +204,10 @@ onMounted(() => {
 }
 
 .dy-main {
-  display: grid;
-  grid-template-rows: auto 1fr;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
   padding: 20rem 36rem 40rem;
   gap: 18rem;
   background: radial-gradient(circle at top, rgba(35, 44, 80, 0.4), transparent 60%);
@@ -327,6 +330,10 @@ onMounted(() => {
 .video-shell {
   display: flex;
   justify-content: center;
+  flex: 1;
+  min-height: 0;
+  height: 0;
+  overflow: hidden;
 }
 
 @media (max-width: 980px) {
