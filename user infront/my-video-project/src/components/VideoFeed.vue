@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { getVideoList } from '../api/video'
 
 const emit = defineEmits(['load-more'])
@@ -13,8 +13,6 @@ const loadError = ref('')
 const pageNum = ref(1)
 const pageSize = 8
 let switchTimer = null
-const videoRefs = new Map()
-const progressMap = reactive({})
 
 const wrapperStyle = computed(() => ({
   transform: `translateY(-${currentIndex.value * 100}%)`,
@@ -127,64 +125,6 @@ const handleWheel = (e) => {
   }
 }
 
-const setVideoRef = (el, id) => {
-  if (!el) {
-    videoRefs.delete(id)
-    delete progressMap[id]
-    return
-  }
-  videoRefs.set(id, el)
-  progressMap[id] = {
-    current: el.currentTime || 0,
-    duration: el.duration || 0,
-  }
-}
-
-const handleTimeUpdate = (id) => {
-  const el = videoRefs.get(id)
-  if (!el) return
-  progressMap[id] = {
-    current: el.currentTime || 0,
-    duration: el.duration || 0,
-  }
-}
-
-const handleLoadedMetadata = (id) => {
-  const el = videoRefs.get(id)
-  if (!el) return
-  progressMap[id] = {
-    current: el.currentTime || 0,
-    duration: el.duration || 0,
-  }
-}
-
-const seekTo = (id, event) => {
-  const el = videoRefs.get(id)
-  if (!el) return
-  const value = Number(event.target.value)
-  if (Number.isFinite(value)) {
-    el.currentTime = value
-  }
-}
-
-const togglePlay = (id) => {
-  const el = videoRefs.get(id)
-  if (!el) return
-  if (el.paused) {
-    el.play()
-  } else {
-    el.pause()
-  }
-}
-
-const getDuration = (id) => progressMap[id]?.duration || 0
-const getCurrent = (id) => progressMap[id]?.current || 0
-const getProgressText = (id) => {
-  const duration = getDuration(id)
-  if (!duration) return '00:00'
-  return formatDuration(getCurrent(id))
-}
-
 onMounted(() => {
   fetchVideos()
 })
@@ -204,11 +144,7 @@ onBeforeUnmount(() => {
     <div v-else class="video-wrapper" :style="wrapperStyle">
       <article v-for="(video, index) in videos" :key="video.id" class="video-item">
         <div class="player-frame">
-          <div
-            class="player-cover"
-            :style="{ backgroundImage: `url(${video.cover})` }"
-            @click="togglePlay(video.id)"
-          >
+          <div class="player-cover" :style="{ backgroundImage: `url(${video.cover})` }">
             <video
               v-if="video.url"
               class="video-el"
@@ -218,9 +154,6 @@ onBeforeUnmount(() => {
               autoplay
               loop
               playsinline
-              @timeupdate="handleTimeUpdate(video.id)"
-              @loadedmetadata="handleLoadedMetadata(video.id)"
-              :ref="(el) => setVideoRef(el, video.id)"
             ></video>
             <div class="player-overlay">
               <div class="player-meta">
@@ -233,18 +166,13 @@ onBeforeUnmount(() => {
                 <p class="desc">{{ video.desc }}</p>
               </div>
               <div class="player-progress">
-                <span>{{ getProgressText(video.id) }}</span>
-                <input
-                  class="progress-range"
-                  type="range"
-                  min="0"
-                  :max="getDuration(video.id)"
-                  step="0.1"
-                  :value="getCurrent(video.id)"
-                  @mousedown.stop
-                  @click.stop
-                  @input="seekTo(video.id, $event)"
-                />
+                <span>00:00</span>
+                <div class="progress-bar">
+                  <div
+                    class="progress-fill"
+                    :style="{ width: index === currentIndex ? '35%' : '0%' }"
+                  ></div>
+                </div>
                 <span>{{ video.duration }}</span>
               </div>
             </div>
@@ -309,7 +237,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  padding: 16rem;
   box-sizing: border-box;
 }
 
@@ -322,20 +250,19 @@ onBeforeUnmount(() => {
 }
 
 .player-frame {
-  width: min(720rem, 100%);
+  width: 100%;
   height: 100%;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 12rem;
 }
 
 .player-cover {
   position: relative;
-  width: 100%;
-  height: 100%;
-  border-radius: 22rem;
+  border-radius: 18rem;
   overflow: hidden;
+  height: 100%;
+  min-height: 0;
   background-position: center;
   background-size: cover;
   box-shadow: 0 24rem 60rem rgba(0, 0, 0, 0.45);
@@ -358,7 +285,7 @@ onBeforeUnmount(() => {
 .player-overlay {
   position: relative;
   height: 100%;
-  padding: 18rem;
+  padding: 20rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -394,38 +321,29 @@ onBeforeUnmount(() => {
   font-size: 12rem;
 }
 
-.progress-range {
+.progress-bar {
   flex: 1;
-  appearance: none;
-  height: 4rem;
-  border-radius: 999rem;
+  height: 2rem;
   background: rgba(255, 255, 255, 0.35);
-  outline: none;
+  border-radius: 999rem;
+  transition: height 0.2s ease;
 }
 
-.progress-range::-webkit-slider-thumb {
-  appearance: none;
-  width: 12rem;
-  height: 12rem;
-  border-radius: 50%;
-  background: #fff;
-  cursor: pointer;
+.player-progress:hover .progress-bar {
+  height: 4rem;
 }
 
-.progress-range::-moz-range-thumb {
-  width: 12rem;
-  height: 12rem;
-  border-radius: 50%;
+.progress-fill {
+  height: 100%;
   background: #fff;
-  cursor: pointer;
-  border: none;
+  border-radius: inherit;
+  transition: width 0.4s ease;
 }
 
 .player-actions {
   position: absolute;
-  right: 20rem;
-  top: 50%;
-  transform: translateY(-40%);
+  right: 18rem;
+  bottom: 120rem;
   display: grid;
   gap: 14rem;
   z-index: 2;
@@ -488,16 +406,10 @@ onBeforeUnmount(() => {
 }
 
 .player-footer {
-  position: absolute;
-  left: 18rem;
-  right: 18rem;
-  bottom: 14rem;
   display: flex;
   justify-content: space-between;
   font-size: 12rem;
   color: var(--dy-text-tertiary);
-  z-index: 2;
-  pointer-events: none;
 }
 
 @media (max-width: 980px) {
