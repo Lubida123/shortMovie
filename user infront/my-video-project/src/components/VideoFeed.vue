@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { getVideoList } from '../api/video'
 
-const emit = defineEmits(['load-more'])
+const emit = defineEmits(['load-more', 'comment-like', 'comment-reply'])
 
 const videos = ref([])
 const currentIndex = ref(0)
@@ -10,6 +10,8 @@ const isSwitching = ref(false)
 const loading = ref(false)
 const hasMore = ref(true)
 const loadError = ref('')
+const isFullscreen = ref(false)
+const feedRef = ref(null)
 const pageNum = ref(1)
 const pageSize = 8
 const videoRefs = ref([])
@@ -20,6 +22,7 @@ const isSeeking = ref(false)
 const seekingIndex = ref(null)
 const showComments = ref(false)
 const newComment = ref('')
+const replyTo = ref(null)
 const defaultAvatar = new URL('../assets/img/avatar.png', import.meta.url).href
 const mockComments = ref([
   {
@@ -28,6 +31,7 @@ const mockComments = ref([
     content: '谁需要流星？我去炸。',
     time: '3周前 · 福建',
     likes: 17,
+    liked: false,
     avatar: defaultAvatar,
   },
   {
@@ -36,6 +40,7 @@ const mockComments = ref([
     content: '今天的风也太温柔了。',
     time: '3周前 · 湖南',
     likes: 3971,
+    liked: false,
     avatar: defaultAvatar,
   },
   {
@@ -44,6 +49,7 @@ const mockComments = ref([
     content: '我要去新疆滑雪了。',
     time: '3周前 · 上海',
     likes: 48,
+    liked: false,
     avatar: defaultAvatar,
   },
   {
@@ -52,6 +58,7 @@ const mockComments = ref([
     content: '看到这里就会想起以前。',
     time: '4天前 · 河南',
     likes: 1,
+    liked: false,
     avatar: defaultAvatar,
   },
   {
@@ -60,6 +67,7 @@ const mockComments = ref([
     content: '漂亮的眼睛清澈幸福。',
     time: '1天前 · 广东',
     likes: 6,
+    liked: false,
     avatar: defaultAvatar,
   },
 ])
@@ -257,6 +265,30 @@ const closeComments = () => {
   showComments.value = false
 }
 
+const clearReply = () => {
+  replyTo.value = null
+}
+
+const handleReply = (comment) => {
+  replyTo.value = comment
+  newComment.value = `@${comment.user} `
+  emit('comment-reply', {
+    commentId: comment.id,
+    videoId: currentVideo.value?.id,
+  })
+}
+
+const toggleCommentLike = (comment) => {
+  const next = !comment.liked
+  comment.liked = next
+  comment.likes = Math.max(0, comment.likes + (next ? 1 : -1))
+  emit('comment-like', {
+    commentId: comment.id,
+    videoId: currentVideo.value?.id,
+    liked: next,
+  })
+}
+
 const canSend = computed(() => newComment.value.trim().length > 0)
 
 const sendComment = () => {
@@ -267,9 +299,11 @@ const sendComment = () => {
     content: newComment.value.trim(),
     time: '刚刚',
     likes: 0,
+    liked: false,
     avatar: defaultAvatar,
   })
   newComment.value = ''
+  replyTo.value = null
 }
 
 const loadMoreIfNeeded = async () => {
@@ -310,8 +344,26 @@ const handleWheel = (e) => {
   }
 }
 
+const handleFullscreenChange = () => {
+  isFullscreen.value = Boolean(document.fullscreenElement)
+}
+
+const toggleFullscreen = async () => {
+  const target = feedRef.value
+  if (!target) return
+  if (document.fullscreenElement) {
+    await document.exitFullscreen()
+    return
+  }
+  if (target.requestFullscreen) {
+    await target.requestFullscreen()
+    target.focus?.()
+  }
+}
+
 onMounted(() => {
   fetchVideos()
+  document.addEventListener('fullscreenchange', handleFullscreenChange)
 })
 
 watch(
@@ -320,6 +372,9 @@ watch(
     if (videos.value.length) {
       syncPlayback(index)
     }
+    showComments.value = false
+    replyTo.value = null
+    newComment.value = ''
   }
 )
 
@@ -337,13 +392,20 @@ onBeforeUnmount(() => {
     window.clearTimeout(switchTimer)
     switchTimer = null
   }
+  document.removeEventListener('fullscreenchange', handleFullscreenChange)
   window.removeEventListener('pointermove', handleSeekMove)
   window.removeEventListener('pointerup', handleSeekEnd)
 })
 </script>
 
 <template>
-  <section class="feed-container" tabindex="0" @wheel.passive.capture="handleWheel">
+  <section
+    ref="feedRef"
+    class="feed-container"
+    :class="{ 'is-fullscreen': isFullscreen }"
+    tabindex="0"
+    @wheel.passive.capture="handleWheel"
+  >
     <div v-if="loadError" class="empty-state">{{ loadError }}</div>
     <div v-else-if="videos.length === 0" class="empty-state">暂无视频</div>
     <div v-else class="video-wrapper" :style="wrapperStyle">
@@ -409,6 +471,10 @@ onBeforeUnmount(() => {
               <img src="../assets/img/icon/share-white.png" alt="share" />
               <span>分享</span>
             </button>
+            <button class="action action-fullscreen" @click.stop="toggleFullscreen">
+              <span class="fullscreen-icon">⛶</span>
+              <span>{{ isFullscreen ? '退出' : '全屏' }}</span>
+            </button>
           </div>
         </div>
       </article>
@@ -422,11 +488,6 @@ onBeforeUnmount(() => {
         </div>
         <button class="comment-close" @click="closeComments">×</button>
       </div>
-      <div class="comment-tabs">
-        <button class="comment-tab">详情</button>
-        <button class="comment-tab">TA的作品</button>
-        <button class="comment-tab active">评论</button>
-      </div>
       <div class="comment-list">
         <div v-for="item in currentComments" :key="item.id" class="comment-item">
           <img class="comment-avatar" :src="item.avatar" alt="avatar" />
@@ -435,20 +496,34 @@ onBeforeUnmount(() => {
             <div class="comment-content">{{ item.content }}</div>
             <div class="comment-meta">
               <span>{{ item.time }}</span>
-              <span class="comment-action">回复</span>
-              <span class="comment-action">赞 {{ item.likes }}</span>
+              <button class="comment-action" @click="handleReply(item)">回复</button>
+              <button
+                class="comment-like"
+                :class="{ active: item.liked }"
+                @click="toggleCommentLike(item)"
+              >
+                <img src="../assets/img/icon/love.svg" alt="like" />
+                <span>{{ item.likes }}</span>
+              </button>
             </div>
           </div>
         </div>
       </div>
       <div class="comment-compose">
-        <input
-          v-model="newComment"
-          type="text"
-          class="comment-input"
-          placeholder="说点什么…"
-        />
-        <button class="comment-send" :disabled="!canSend" @click="sendComment">发送</button>
+        <div v-if="replyTo" class="comment-replying">
+          回复 @{{ replyTo.user }}
+          <button class="comment-cancel" @click="clearReply">取消</button>
+        </div>
+        <div class="comment-input-row">
+          <input
+            v-model="newComment"
+            type="text"
+            class="comment-input"
+            placeholder="说点什么…"
+            @keydown.enter.exact.prevent="sendComment"
+          />
+          <button class="comment-send" :disabled="!canSend" @click="sendComment">发送</button>
+        </div>
       </div>
     </aside>
   </section>
@@ -563,6 +638,11 @@ onBeforeUnmount(() => {
   font-size: 12rem;
 }
 
+.action-fullscreen .fullscreen-icon {
+  font-size: 16rem;
+  line-height: 1;
+}
+
 .player-info {
   position: absolute;
   left: 18rem;
@@ -659,7 +739,7 @@ onBeforeUnmount(() => {
   right: 0;
   height: 100%;
   width: 360rem;
-  background: rgba(14, 16, 24, 0.98);
+  background: linear-gradient(180deg, rgba(15, 18, 30, 0.98), rgba(10, 12, 20, 0.98));
   border-left: 1rem solid rgba(148, 163, 184, 0.2);
   transform: translateX(100%);
   transition: transform 0.25s ease;
@@ -704,27 +784,6 @@ onBeforeUnmount(() => {
   line-height: 1;
 }
 
-.comment-tabs {
-  display: flex;
-  gap: 14rem;
-  padding: 10rem 20rem;
-  border-bottom: 1rem solid rgba(148, 163, 184, 0.14);
-  font-size: 13rem;
-}
-
-.comment-tab {
-  border: none;
-  background: transparent;
-  color: rgba(226, 232, 240, 0.7);
-  padding-bottom: 6rem;
-  cursor: pointer;
-}
-
-.comment-tab.active {
-  color: #fff;
-  border-bottom: 2rem solid #f43f5e;
-}
-
 .comment-list {
   flex: 1;
   min-height: 0;
@@ -737,6 +796,8 @@ onBeforeUnmount(() => {
 .comment-item {
   display: flex;
   gap: 12rem;
+  padding-bottom: 12rem;
+  border-bottom: 1rem solid rgba(148, 163, 184, 0.12);
 }
 
 .comment-avatar {
@@ -762,18 +823,76 @@ onBeforeUnmount(() => {
 
 .comment-meta {
   display: flex;
+  align-items: center;
   gap: 12rem;
   font-size: 11rem;
   color: rgba(226, 232, 240, 0.6);
 }
 
 .comment-action {
+  border: none;
+  background: transparent;
+  color: rgba(226, 232, 240, 0.7);
   cursor: pointer;
+  padding: 0;
+}
+
+.comment-action:hover {
+  color: #fff;
+}
+
+.comment-like {
+  border: none;
+  background: transparent;
+  color: rgba(226, 232, 240, 0.7);
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6rem;
+}
+
+.comment-like img {
+  width: 14rem;
+  opacity: 0.8;
+}
+
+.comment-like.active {
+  color: #f43f5e;
+}
+
+.comment-like.active img {
+  filter: drop-shadow(0 0 6rem rgba(244, 63, 94, 0.6));
+  opacity: 1;
 }
 
 .comment-compose {
   border-top: 1rem solid rgba(148, 163, 184, 0.14);
   padding: 12rem 20rem 16rem;
+  display: flex;
+  flex-direction: column;
+  gap: 10rem;
+}
+
+.comment-replying {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6rem 12rem;
+  border-radius: 999rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(226, 232, 240, 0.8);
+  font-size: 12rem;
+}
+
+.comment-cancel {
+  border: none;
+  background: transparent;
+  color: rgba(226, 232, 240, 0.8);
+  cursor: pointer;
+}
+
+.comment-input-row {
   display: flex;
   gap: 10rem;
 }
@@ -802,6 +921,27 @@ onBeforeUnmount(() => {
 .comment-send:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.feed-container.is-fullscreen {
+  background: #000;
+}
+
+.feed-container.is-fullscreen .player-frame {
+  gap: 0;
+}
+
+.feed-container.is-fullscreen .player-cover {
+  max-width: none;
+  border-radius: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.feed-container.is-fullscreen .player-actions {
+  position: absolute;
+  right: 24rem;
+  bottom: 120rem;
 }
 
 @media (max-width: 980px) {
