@@ -43,7 +43,8 @@ export const mockAdminUserInfo = () => {
     permissions: [
       'user:manage',
       'permission:manage',
-      'video:manage'
+      'video:manage',
+      'data:analysis'
     ]
   }
 }

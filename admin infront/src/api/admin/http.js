@@ -54,7 +54,15 @@ let mockPermissions = [
     permissionCode: 'permission:manage',
     permissionName: '权限管理',
     children: [{ permissionCode: 'role:add', permissionName: '新增角色' }]
-  }
+  },
+  {
+  permissionCode: 'data:analysis',
+  permissionName: '数据分析',
+  children: [
+    { permissionCode: 'data:view', permissionName: '查看数据' },
+    { permissionCode: 'data:export', permissionName: '导出数据' }
+  ]
+}
 ]
 
 // 请求拦截器：添加Token + 模拟数据
@@ -64,6 +72,267 @@ adminHttp.interceptors.request.use(
     const token = getAdminToken()
     if (token) {
       config.headers['X-Admin-Token'] = token
+    // src/api/admin/http.js - 在请求拦截器中添加
+
+// 获取用户增长数据
+if (config.url.includes('/data/user/growth')) {
+  const params = config.params || {}
+  const days = params.days || 30
+  
+  const generateData = (count) => {
+    return Array.from({ length: count }, () => Math.floor(Math.random() * 200) + 50)
+  }
+  
+  const labels = Array.from({ length: days }, (_, i) => {
+    const date = new Date()
+    date.setDate(date.getDate() - (days - 1 - i))
+    return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
+  })
+  
+  return Promise.reject({
+    mock: true,
+    data: {
+      labels,
+      newUsers: generateData(days),
+      activeUsers: generateData(days).map(v => v * 10),
+      totalUsers: Array.from({ length: days }, (_, i) => 10000 + i * 100)
+    }
+  })
+}
+
+// 获取视频分类数据
+if (config.url.includes('/data/category')) {
+  return Promise.reject({
+    mock: true,
+    data: [
+      { name: '生活', value: 1560, views: 156000, color: '#FE2C55' },
+      { name: '娱乐', value: 1240, views: 124000, color: '#25F4EE' },
+      { name: '知识', value: 980, views: 98000, color: '#FF9500' },
+      { name: '游戏', value: 760, views: 76000, color: '#00C864' },
+      { name: '音乐', value: 540, views: 54000, color: '#AF52DE' }
+    ]
+  })
+}
+
+// 获取热门时段数据
+if (config.url.includes('/data/active/period')) {
+  const hours = Array.from({ length: 24 }, (_, i) => `${i}:00`)
+  return Promise.reject({
+    mock: true,
+    data: {
+      hours,
+      weekday: Array.from({ length: 24 }, () => Math.floor(Math.random() * 4000) + 1000),
+      weekend: Array.from({ length: 24 }, () => Math.floor(Math.random() * 6000) + 2000),
+      average: Array.from({ length: 24 }, () => Math.floor(Math.random() * 5000) + 1500)
+    }
+  })
+}
+
+// 获取热门视频排行榜
+if (config.url.includes('/data/hot/videos')) {
+  return Promise.reject({
+    mock: true,
+    data: [
+      {
+        id: 1,
+        cover: 'https://via.placeholder.com/120x80?text=Video1',
+        title: '生活小技巧分享',
+        author: '张三',
+        views: 154321,
+        likes: 12345,
+        comments: 2345,
+        shares: 456,
+        interactionRate: 0.095
+      },
+      {
+        id: 2,
+        cover: 'https://via.placeholder.com/120x80?text=Video2',
+        title: '搞笑短视频合集',
+        author: '李四',
+        views: 143210,
+        likes: 13456,
+        comments: 3456,
+        shares: 567,
+        interactionRate: 0.118
+      },
+      {
+        id: 3,
+        cover: 'https://via.placeholder.com/120x80?text=Video3',
+        title: '编程入门教程',
+        author: '王五',
+        views: 132109,
+        likes: 14567,
+        comments: 4567,
+        shares: 678,
+        interactionRate: 0.145
+      },
+      {
+        id: 4,
+        cover: 'https://via.placeholder.com/120x80?text=Video4',
+        title: '游戏精彩集锦',
+        author: '赵六',
+        views: 121098,
+        likes: 15678,
+        comments: 5678,
+        shares: 789,
+        interactionRate: 0.176
+      },
+      {
+        id: 5,
+        cover: 'https://via.placeholder.com/120x80?text=Video5',
+        title: '音乐现场录制',
+        author: '钱七',
+        views: 110987,
+        likes: 16789,
+        comments: 6789,
+        shares: 890,
+        interactionRate: 0.213
+      }
+    ]
+  })
+}
+
+// 获取热门创作者排行榜
+if (config.url.includes('/data/hot/creators')) {
+  return Promise.reject({
+    mock: true,
+    data: [
+      {
+        id: 1,
+        avatar: 'https://via.placeholder.com/40?text=ZS',
+        name: '张三',
+        category: '生活',
+        followers: 154321,
+        videos: 56,
+        totalViews: 1560000,
+        totalLikes: 234567,
+        totalComments: 45678
+      },
+      {
+        id: 2,
+        avatar: 'https://via.placeholder.com/40?text=LS',
+        name: '李四',
+        category: '娱乐',
+        followers: 143210,
+        videos: 43,
+        totalViews: 1432100,
+        totalLikes: 198765,
+        totalComments: 34567
+      },
+      {
+        id: 3,
+        avatar: 'https://via.placeholder.com/40?text=WW',
+        name: '王五',
+        category: '知识',
+        followers: 132109,
+        videos: 32,
+        totalViews: 1321090,
+        totalLikes: 176543,
+        totalComments: 23456
+      },
+      {
+        id: 4,
+        avatar: 'https://via.placeholder.com/40?text=ZL',
+        name: '赵六',
+        category: '游戏',
+        followers: 121098,
+        videos: 67,
+        totalViews: 1210980,
+        totalLikes: 154321,
+        totalComments: 12345
+      },
+      {
+        id: 5,
+        avatar: 'https://via.placeholder.com/40?text=QQ',
+        name: '钱七',
+        category: '音乐',
+        followers: 110987,
+        videos: 45,
+        totalViews: 1109870,
+        totalLikes: 143210,
+        totalComments: 11234
+      }
+    ]
+  })
+}
+
+// 导出数据接口
+if (config.url.includes('/data/export')) {
+  // 模拟文件下载
+  const blob = new Blob(['模拟导出的数据'], { type: 'application/vnd.ms-excel' })
+  const url = URL.createObjectURL(blob)
+  
+  return Promise.reject({
+    mock: true,
+    data: {
+      success: true,
+      message: '数据导出成功',
+      url: url
+    }
+  })
+}
+// 数据分析统计接口
+if (config.url.includes('/data/analysis/stats')) {
+  return Promise.reject({
+    mock: true,
+    data: {
+      totalViews: 1567890,
+      viewTrend: 12.5,
+      totalLikes: 234567,
+      likeTrend: 8.3,
+      totalComments: 45678,
+      commentTrend: 5.7,
+      totalShares: 12345,
+      shareTrend: 15.2,
+      newUsers: 1234,
+      activeUsers: 45678,
+      totalUsers: 123456
+    }
+  })
+}
+
+// 播放量趋势数据
+if (config.url.includes('/data/trend/views')) {
+  const params = config.params || {}
+  const days = params.days || 7
+  
+  const generateData = (count) => {
+    return Array.from({ length: count }, () => Math.floor(Math.random() * 50000) + 10000)
+  }
+  
+  const labels = Array.from({ length: days }, (_, i) => {
+    const date = new Date()
+    date.setDate(date.getDate() - (days - 1 - i))
+    return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
+  })
+  
+  return Promise.reject({
+    mock: true,
+    data: {
+      labels,
+      data: generateData(days)
+    }
+  })
+}
+
+// 用户互动数据
+if (config.url.includes('/data/interaction')) {
+  return Promise.reject({
+    mock: true,
+    data: {
+      likes: 234567,
+      comments: 45678,
+      shares: 12345,
+      collects: 3456,
+      distribution: [
+        { name: '点赞', value: 234567, percentage: 60.5 },
+        { name: '评论', value: 45678, percentage: 11.8 },
+        { name: '分享', value: 12345, percentage: 3.2 },
+        { name: '收藏', value: 3456, percentage: 0.9 }
+      ]
+    }
+  })
+}
     }
 
     // ==================== 用户管理相关接口 ====================
@@ -428,7 +697,7 @@ adminHttp.interceptors.request.use(
             userInfo: {
               username: '管理员',
               role: 'admin',
-              permissions: ['user:manage', 'video:manage', 'permission:manage']
+              permissions: ['user:manage', 'video:manage', 'permission:manage' ,'data:analysis' ]
             }
           }
         })

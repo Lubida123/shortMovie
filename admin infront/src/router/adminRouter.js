@@ -44,12 +44,18 @@ const adminRoutes = [
         component: () => import('@/views/admin/AdminPermissionManage.vue'),
         meta: { title: '权限管理', requiredPermission: 'permission:manage' }
       },
-      // 新增视频管理路由 - 修复路径
       {
         path: 'video-manage', // 路由：/admin/video-manage
         name: 'AdminVideoManage',
         component: () => import('@/views/admin/AdminVideoManage.vue'),
         meta: { title: '视频管理', requiredPermission: 'video:manage' }
+      },
+
+      {
+        path: 'data-analysis', // 路由：/admin/data-analysis
+        name: 'AdminDataAnalysis',
+        component: () => import('@/views/admin/AdminDataAnalysis.vue'),
+        meta: { title: '数据分析', requiredPermission: 'data:analysis' }
       }
     ]
   },

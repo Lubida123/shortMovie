@@ -1,4 +1,3 @@
-<!-- src/layouts/AdminLayout.vue -->
 <template>
   <div class="admin-layout-container">
     <!-- 移动端菜单按钮 -->
@@ -52,6 +51,10 @@
           <el-icon><Lock /></el-icon>
           <span>权限管理</span>
         </el-menu-item>
+        <el-menu-item index="5" :route="{ path: '/admin/data-analysis' }">
+          <el-icon><TrendCharts /></el-icon>
+          <span>数据分析</span>
+        </el-menu-item>
       </el-menu>
     </aside>
 
@@ -83,11 +86,12 @@
 </template>
 
 <script setup>
-import { House, User, Lock, VideoPlay, SwitchButton, Menu } from '@element-plus/icons-vue'
+import { House, User, Lock, VideoPlay, SwitchButton, Menu, TrendCharts} from '@element-plus/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { clearAdminStorage } from '@/utils/adminAuth'
+
 
 const router = useRouter()
 const route = useRoute()
@@ -140,6 +144,8 @@ watch(
       activeIndex.value = '3'
     } else if (newPath.includes('/admin/permission-manage')) {
       activeIndex.value = '4'
+    }else if (newPath.includes('/admin/data-analysis')) {
+      activeIndex.value = '5'
     }
     
     // 移动端自动关闭侧边栏
