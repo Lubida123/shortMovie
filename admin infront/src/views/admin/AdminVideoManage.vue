@@ -7,6 +7,41 @@
       <p class="page-subtitle">管理平台视频内容，包括审核、编辑、删除等操作</p>
     </div>
 
+    <!-- 筛选状态提示 -->
+    <div class="filter-hint" v-if="hasActiveFilters">
+      <div class="hint-content">
+        <el-icon><Filter /></el-icon>
+        <span class="hint-text">当前筛选条件：</span>
+        
+        <template v-if="filterCategory">
+          <el-tag size="small" class="filter-tag">
+            分类：{{ getCategoryName(filterCategory) }}
+          </el-tag>
+        </template>
+        
+        <template v-if="filterStatus">
+          <el-tag size="small" class="filter-tag" :type="getStatusType(filterStatus)">
+            {{ getStatusName(filterStatus) }}
+          </el-tag>
+        </template>
+        
+        <template v-if="searchKeyword">
+          <el-tag size="small" class="filter-tag">
+            关键词："{{ searchKeyword }}"
+          </el-tag>
+        </template>
+        
+        <div class="hint-stats">
+          共找到 {{ pagination.total }} 个视频
+        </div>
+        
+        <span class="hint-clear" @click="resetFilters">
+          <el-icon><Close /></el-icon>
+          清除筛选
+        </span>
+      </div>
+    </div>
+
     <!-- 搜索和筛选区域 -->
     <div class="search-filter-section">
       <div class="search-box">
@@ -16,6 +51,7 @@
           clearable
           class="search-input"
           @keyup.enter="handleSearch"
+          @clear="handleSearch"
         >
           <template #prefix>
             <el-icon><Search /></el-icon>
@@ -32,6 +68,7 @@
           placeholder="审核状态"
           clearable
           class="filter-select"
+          @change="handleSearch"
         >
           <el-option label="全部状态" value="" />
           <el-option label="待审核" value="pending" />
@@ -45,6 +82,7 @@
           placeholder="视频分类"
           clearable
           class="filter-select"
+          @change="handleSearch"
         >
           <el-option label="全部分类" value="" />
           <el-option label="生活" value="life" />
@@ -70,7 +108,7 @@
                 <el-icon color="#409EFF"><VideoPlay /></el-icon>
               </div>
               <div class="stat-info">
-                <div class="stat-number">1,560</div>
+                <div class="stat-number">{{ stats.totalVideos }}</div>
                 <div class="stat-label">总视频数</div>
               </div>
             </div>
@@ -84,7 +122,7 @@
                 <el-icon color="#E6A23C"><Clock /></el-icon>
               </div>
               <div class="stat-info">
-                <div class="stat-number">42</div>
+                <div class="stat-number">{{ stats.pendingVideos }}</div>
                 <div class="stat-label">待审核</div>
               </div>
             </div>
@@ -98,7 +136,7 @@
                 <el-icon color="#67C23A"><Check /></el-icon>
               </div>
               <div class="stat-info">
-                <div class="stat-number">1,480</div>
+                <div class="stat-number">{{ stats.approvedVideos }}</div>
                 <div class="stat-label">已通过</div>
               </div>
             </div>
@@ -112,7 +150,7 @@
                 <el-icon color="#F56C6C"><Close /></el-icon>
               </div>
               <div class="stat-info">
-                <div class="stat-number">38</div>
+                <div class="stat-number">{{ stats.rejectedVideos }}</div>
                 <div class="stat-label">已拒绝</div>
               </div>
             </div>
@@ -146,7 +184,7 @@
     <!-- 视频列表表格 -->
     <div class="table-container">
       <el-table
-        :data="videoList"
+        :data="paginatedVideoList"
         style="width: 100%"
         v-loading="loading"
         @selection-change="handleSelectionChange"
@@ -190,7 +228,13 @@
         
         <el-table-column prop="category" label="分类" width="100" align="center">
           <template #default="scope">
-            <el-tag size="small" class="category-tag">{{ getCategoryName(scope.row.category) }}</el-tag>
+            <el-tag 
+              size="small" 
+              class="category-tag"
+              :data-category="scope.row.category"
+            >
+              {{ getCategoryName(scope.row.category) }}
+            </el-tag>
           </template>
         </el-table-column>
         
@@ -264,8 +308,18 @@
                     <el-dropdown-item @click="handleEdit(scope.row)">
                       <el-icon><Edit /></el-icon>编辑
                     </el-dropdown-item>
-                    <el-dropdown-item @click="handleTakeDown(scope.row)" divided>
+                    <el-dropdown-item 
+                      @click="handleTakeDown(scope.row)" 
+                      divided
+                      v-if="scope.row.status === 'approved'"
+                    >
                       <el-icon><Delete /></el-icon>下架
+                    </el-dropdown-item>
+                    <el-dropdown-item 
+                      @click="handleRestore(scope.row)" 
+                      v-if="scope.row.status === 'taken_down'"
+                    >
+                      <el-icon><RefreshRight /></el-icon>恢复
                     </el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
@@ -281,7 +335,7 @@
       <el-pagination
         v-model:current-page="pagination.pageNum"
         v-model:page-size="pagination.pageSize"
-        :page-sizes="[10, 20, 50, 100]"
+        :page-sizes="[5, 10, 20, 50]"
         :total="pagination.total"
         layout="total, sizes, prev, pager, next, jumper"
         @size-change="handleSizeChange"
@@ -292,7 +346,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Search, 
@@ -305,8 +359,11 @@ import {
   Edit,
   Delete,
   Refresh,
-  Select
+  Select,
+  Filter,
+  RefreshRight
 } from '@element-plus/icons-vue'
+import { getVideoList, getVideoStats } from '@/api/admin/userApi'
 
 // 状态管理
 const searchKeyword = ref('')
@@ -322,74 +379,56 @@ const pagination = ref({
   total: 0
 })
 
-// 视频列表数据
-const videoList = ref([
-  {
-    id: 1,
-    title: '测试视频标题 1 - 生活',
-    coverUrl: 'https://via.placeholder.com/120x80?text=Video1',
-    duration: 125,
-    authorName: '张三',
-    authorAvatar: 'https://via.placeholder.com/40?text=ZS',
-    category: 'life',
-    views: 15432,
-    likes: 1234,
-    status: 'pending',
-    createTime: '2024-01-01 10:00:00'
-  },
-  {
-    id: 2,
-    title: '测试视频标题 2 - 娱乐',
-    coverUrl: 'https://via.placeholder.com/120x80?text=Video2',
-    duration: 240,
-    authorName: '李四',
-    authorAvatar: 'https://via.placeholder.com/40?text=LS',
-    category: 'entertainment',
-    views: 23456,
-    likes: 2345,
-    status: 'approved',
-    createTime: '2024-01-02 11:00:00'
-  },
-  {
-    id: 3,
-    title: '测试视频标题 3 - 知识',
-    coverUrl: 'https://via.placeholder.com/120x80?text=Video3',
-    duration: 180,
-    authorName: '王五',
-    authorAvatar: 'https://via.placeholder.com/40?text=WW',
-    category: 'knowledge',
-    views: 8765,
-    likes: 876,
-    status: 'rejected',
-    createTime: '2024-01-03 12:00:00'
-  },
-  {
-    id: 4,
-    title: '测试视频标题 4 - 游戏',
-    coverUrl: 'https://via.placeholder.com/120x80?text=Video4',
-    duration: 360,
-    authorName: '赵六',
-    authorAvatar: 'https://via.placeholder.com/40?text=ZL',
-    category: 'game',
-    views: 45678,
-    likes: 4567,
-    status: 'approved',
-    createTime: '2024-01-04 13:00:00'
-  },
-  {
-    id: 5,
-    title: '测试视频标题 5 - 音乐',
-    coverUrl: 'https://via.placeholder.com/120x80?text=Video5',
-    duration: 210,
-    authorName: '钱七',
-    authorAvatar: 'https://via.placeholder.com/40?text=QQ',
-    category: 'music',
-    views: 32145,
-    likes: 3214,
-    status: 'pending',
-    createTime: '2024-01-05 14:00:00'
+// 统计数据
+const stats = ref({
+  totalVideos: 0,
+  pendingVideos: 0,
+  approvedVideos: 0,
+  rejectedVideos: 0,
+  todayUploads: 0,
+  yesterdayUploads: 0
+})
+
+// 原始视频列表数据
+const originalVideoList = ref([])
+
+// 计算属性：是否有激活的筛选条件
+const hasActiveFilters = computed(() => {
+  return searchKeyword.value || filterStatus.value || filterCategory.value
+})
+
+// 计算属性：根据筛选条件过滤视频列表
+const filteredVideoList = computed(() => {
+  let result = [...originalVideoList.value]
+  
+  // 关键词搜索（标题或作者）
+  if (searchKeyword.value) {
+    const keyword = searchKeyword.value.toLowerCase()
+    result = result.filter(video => 
+      video.title.toLowerCase().includes(keyword) || 
+      video.authorName.toLowerCase().includes(keyword)
+    )
   }
-])
+  
+  // 状态筛选
+  if (filterStatus.value) {
+    result = result.filter(video => video.status === filterStatus.value)
+  }
+  
+  // 分类筛选
+  if (filterCategory.value) {
+    result = result.filter(video => video.category === filterCategory.value)
+  }
+  
+  return result
+})
+
+// 计算属性：分页后的视频列表
+const paginatedVideoList = computed(() => {
+  const startIndex = (pagination.value.pageNum - 1) * pagination.value.pageSize
+  const endIndex = startIndex + pagination.value.pageSize
+  return filteredVideoList.value.slice(startIndex, endIndex)
+})
 
 // 分类映射
 const categoryMap = {
@@ -437,13 +476,26 @@ const formatNumber = (num) => {
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
+// 更新分页总数
+const updatePaginationTotal = () => {
+  pagination.value.total = filteredVideoList.value.length
+  
+  // 如果当前页没有数据，且不是第一页，自动回到第一页
+  if (paginatedVideoList.value.length === 0 && pagination.value.pageNum > 1) {
+    pagination.value.pageNum = 1
+  }
+}
+
 // 搜索处理
 const handleSearch = () => {
   loading.value = true
+  pagination.value.pageNum = 1
+  updatePaginationTotal()
+  
   setTimeout(() => {
-    ElMessage.success('搜索完成')
+    ElMessage.success(`找到 ${filteredVideoList.value.length} 个视频`)
     loading.value = false
-  }, 500)
+  }, 300)
 }
 
 // 重置筛选
@@ -451,28 +503,104 @@ const resetFilters = () => {
   searchKeyword.value = ''
   filterStatus.value = ''
   filterCategory.value = ''
-  handleSearch()
+  pagination.value.pageNum = 1
+  updatePaginationTotal()
+  ElMessage.info('已重置所有筛选条件')
 }
 
 // 分页处理
 const handleSizeChange = (val) => {
   pagination.value.pageSize = val
   pagination.value.pageNum = 1
-  fetchVideoList()
+  updatePaginationTotal()
 }
 
 const handleCurrentChange = (val) => {
   pagination.value.pageNum = val
-  fetchVideoList()
 }
 
 // 获取视频列表
-const fetchVideoList = () => {
-  loading.value = true
-  setTimeout(() => {
-    pagination.value.total = videoList.value.length
+const fetchVideoList = async () => {
+  try {
+    loading.value = true
+    const params = {
+      pageNum: pagination.value.pageNum,
+      pageSize: pagination.value.pageSize,
+      keyword: searchKeyword.value,
+      status: filterStatus.value,
+      category: filterCategory.value
+    }
+    
+    const res = await getVideoList(params)
+    originalVideoList.value = res.list || res || []
+    pagination.value.total = res.total || originalVideoList.value.length
+    
+  } catch (error) {
+    console.error('获取视频列表失败:', error)
+    // 使用模拟数据作为后备
+    originalVideoList.value = generateMockVideos()
+    pagination.value.total = originalVideoList.value.length
+  } finally {
     loading.value = false
-  }, 300)
+  }
+}
+
+// 获取视频统计数据
+const fetchVideoStats = async () => {
+  try {
+    const res = await getVideoStats()
+    stats.value = res
+  } catch (error) {
+    console.error('获取视频统计数据失败:', error)
+    stats.value = {
+      totalVideos: 1560,
+      pendingVideos: 42,
+      approvedVideos: 1480,
+      rejectedVideos: 38,
+      todayUploads: 156,
+      yesterdayUploads: 142
+    }
+  }
+}
+
+// 生成模拟视频数据
+const generateMockVideos = () => {
+  const videos = []
+  const categories = ['life', 'entertainment', 'knowledge', 'game', 'music']
+  const statuses = ['pending', 'approved', 'rejected', 'taken_down']
+  const authors = ['张三', '李四', '王五', '赵六', '钱七']
+  const titles = [
+    '生活小技巧分享',
+    '搞笑短视频合集',
+    '编程入门教程',
+    '游戏精彩集锦',
+    '音乐现场录制',
+    '旅行VLOG',
+    '美食制作过程',
+    '健身教学',
+    '科技产品评测',
+    '电影解说'
+  ]
+  
+  for (let i = 1; i <= 50; i++) {
+    const category = categories[Math.floor(Math.random() * categories.length)]
+    videos.push({
+      id: i,
+      title: `${titles[Math.floor(Math.random() * titles.length)]} ${i}`,
+      coverUrl: `https://via.placeholder.com/120x80?text=Video${i}`,
+      duration: Math.floor(Math.random() * 600) + 60,
+      authorName: authors[Math.floor(Math.random() * authors.length)],
+      authorAvatar: `https://via.placeholder.com/40?text=User${Math.floor(Math.random() * 5) + 1}`,
+      category: category,
+      views: Math.floor(Math.random() * 1000000),
+      likes: Math.floor(Math.random() * 100000),
+      comments: Math.floor(Math.random() * 10000),
+      shares: Math.floor(Math.random() * 5000),
+      status: statuses[Math.floor(Math.random() * statuses.length)],
+      createTime: `2024-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 28) + 1).padStart(2, '0')} ${String(Math.floor(Math.random() * 24)).padStart(2, '0')}:${String(Math.floor(Math.random() * 60)).padStart(2, '0')}:${String(Math.floor(Math.random() * 60)).padStart(2, '0')}`
+    })
+  }
+  return videos
 }
 
 // 选择处理
@@ -486,15 +614,23 @@ const clearSelection = () => {
 
 // 批量操作
 const batchApprove = async () => {
+  if (selectedVideos.value.length === 0) {
+    ElMessage.warning('请先选择视频')
+    return
+  }
+  
   try {
     await ElMessageBox.confirm(
       `确定要通过选中的 ${selectedVideos.value.length} 个视频吗？`,
       '批量通过',
       { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
     )
+    
+    const ids = selectedVideos.value.map(video => video.id)
     selectedVideos.value.forEach(video => {
       video.status = 'approved'
     })
+    
     ElMessage.success(`已成功通过 ${selectedVideos.value.length} 个视频`)
     clearSelection()
   } catch {
@@ -503,15 +639,22 @@ const batchApprove = async () => {
 }
 
 const batchReject = async () => {
+  if (selectedVideos.value.length === 0) {
+    ElMessage.warning('请先选择视频')
+    return
+  }
+  
   try {
     await ElMessageBox.confirm(
       `确定要拒绝选中的 ${selectedVideos.value.length} 个视频吗？`,
       '批量拒绝',
       { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
     )
+    
     selectedVideos.value.forEach(video => {
       video.status = 'rejected'
     })
+    
     ElMessage.success(`已成功拒绝 ${selectedVideos.value.length} 个视频`)
     clearSelection()
   } catch {
@@ -520,14 +663,27 @@ const batchReject = async () => {
 }
 
 const batchDelete = async () => {
+  if (selectedVideos.value.length === 0) {
+    ElMessage.warning('请先选择视频')
+    return
+  }
+  
   try {
     await ElMessageBox.confirm(
       `确定要删除选中的 ${selectedVideos.value.length} 个视频吗？此操作不可撤销！`,
       '批量删除',
       { confirmButtonText: '确定', cancelButtonText: '取消', type: 'danger' }
     )
+    
+    const idsToDelete = selectedVideos.value.map(v => v.id)
+    originalVideoList.value = originalVideoList.value.filter(
+      video => !idsToDelete.includes(video.id)
+    )
+    
     ElMessage.success(`已成功删除 ${selectedVideos.value.length} 个视频`)
     clearSelection()
+    updatePaginationTotal()
+    fetchVideoStats()
   } catch {
     ElMessage.info('已取消批量删除')
   }
@@ -555,6 +711,7 @@ const handleApprove = async (video) => {
     )
     video.status = 'approved'
     ElMessage.success('视频已通过审核')
+    fetchVideoStats()
   } catch {
     ElMessage.info('已取消通过操作')
   }
@@ -569,6 +726,7 @@ const handleReject = async (video) => {
     )
     video.status = 'rejected'
     ElMessage.success('视频已拒绝审核')
+    fetchVideoStats()
   } catch {
     ElMessage.info('已取消拒绝操作')
   }
@@ -587,23 +745,79 @@ const handleTakeDown = async (video) => {
     )
     video.status = 'taken_down'
     ElMessage.success('视频已下架')
+    fetchVideoStats()
   } catch {
     ElMessage.info('已取消下架操作')
   }
 }
 
+const handleRestore = async (video) => {
+  try {
+    await ElMessageBox.confirm(
+      '确定要恢复这个视频吗？',
+      '恢复视频',
+      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+    )
+    video.status = 'approved'
+    ElMessage.success('视频已恢复')
+    fetchVideoStats()
+  } catch {
+    ElMessage.info('已取消恢复操作')
+  }
+}
+
+// 监听筛选条件变化，自动更新分页总数
+watch([searchKeyword, filterStatus, filterCategory], () => {
+  updatePaginationTotal()
+})
+
 // 初始化
 onMounted(() => {
   fetchVideoList()
+  fetchVideoStats()
 })
 </script>
 
 <style lang="less" scoped>
+// Less变量定义（与tokens.css保持一致，但这里直接定义确保生效）
+@dy-bg-body: #121212;
+@dy-bg-container: #161618;
+@dy-bg-elevated: #252526;
+@dy-bg-hover: #2D2D2D;
+@dy-brand-red: #FE2C55;
+@dy-brand-cyan: #25F4EE;
+@dy-text-primary: rgba(255, 255, 255, 1);
+@dy-text-secondary: rgba(255, 255, 255, 0.88);
+@dy-text-tertiary: rgba(255, 255, 255, 0.55);
+@dy-border-default: 1px solid rgba(255, 255, 255, 0.08);
+
+// 标签专用颜色（增强对比度）
+@dy-tag-warning-bg: rgba(230, 162, 60, 0.3);
+@dy-tag-warning-text: #E6C25C;
+@dy-tag-success-bg: rgba(103, 194, 58, 0.3);
+@dy-tag-success-text: #85D475;
+@dy-tag-danger-bg: rgba(245, 108, 108, 0.3);
+@dy-tag-danger-text: #FF8A8A;
+@dy-tag-info-bg: rgba(144, 147, 153, 0.3);
+@dy-tag-info-text: #A8ABB2;
+
+// 分类标签颜色
+@dy-tag-life-bg: rgba(64, 158, 255, 0.3);
+@dy-tag-life-text: #80C5FF;
+@dy-tag-entertainment-bg: rgba(156, 39, 176, 0.3);
+@dy-tag-entertainment-text: #C678DD;
+@dy-tag-knowledge-bg: rgba(255, 152, 0, 0.3);
+@dy-tag-knowledge-text: #FFB74D;
+@dy-tag-game-bg: rgba(233, 30, 99, 0.3);
+@dy-tag-game-text: #F48FB1;
+@dy-tag-music-bg: rgba(0, 188, 212, 0.3);
+@dy-tag-music-text: #80DEEA;
+
 .admin-video-manage-container {
   padding: 20px;
   min-height: 100vh;
-  background: #121212;
-  color: rgba(255, 255, 255, 0.88);
+  background: @dy-bg-body;
+  color: @dy-text-primary;
   font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
@@ -614,22 +828,99 @@ onMounted(() => {
     font-size: 24px;
     font-weight: 600;
     margin: 0 0 8px 0;
-    color: #FE2C55;
+    color: @dy-brand-red;
   }
   
   .page-subtitle {
-    color: rgba(255, 255, 255, 0.55);
+    color: @dy-text-tertiary;
     margin: 0;
     font-size: 14px;
   }
 }
 
+// 筛选状态提示
+.filter-hint {
+  background: linear-gradient(to right, rgba(254, 44, 85, 0.1), rgba(37, 244, 238, 0.1));
+  border: 1px solid rgba(254, 44, 85, 0.2);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  backdrop-filter: blur(10px);
+  
+  .hint-content {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    
+    .el-icon {
+      color: @dy-brand-cyan;
+      font-size: 16px;
+    }
+    
+    .hint-text {
+      color: @dy-text-secondary;
+      font-size: 14px;
+      margin-right: 8px;
+    }
+    
+    .filter-tag {
+      height: 24px;
+      line-height: 22px;
+      font-size: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: @dy-text-primary;
+      
+      &.el-tag--warning {
+        background: @dy-tag-warning-bg;
+        color: @dy-tag-warning-text;
+      }
+      
+      &.el-tag--success {
+        background: @dy-tag-success-bg;
+        color: @dy-tag-success-text;
+      }
+      
+      &.el-tag--danger {
+        background: @dy-tag-danger-bg;
+        color: @dy-tag-danger-text;
+      }
+    }
+    
+    .hint-stats {
+      margin-left: auto;
+      color: @dy-brand-cyan;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    .hint-clear {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: @dy-brand-red;
+      cursor: pointer;
+      font-size: 13px;
+      
+      &:hover {
+        text-decoration: underline;
+      }
+      
+      .el-icon {
+        color: @dy-brand-red;
+        font-size: 14px;
+      }
+    }
+  }
+}
+
 .search-filter-section {
-  background: #161618;
+  background: @dy-bg-container;
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: @dy-border-default;
   
   .search-box {
     display: flex;
@@ -640,13 +931,13 @@ onMounted(() => {
       flex: 1;
       
       :deep(.el-input__wrapper) {
-        background: #252526;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: @dy-bg-elevated;
+        border: @dy-border-default;
         box-shadow: none;
       }
       
       :deep(.el-input__inner) {
-        color: rgba(255, 255, 255, 0.88);
+        color: @dy-text-primary;
       }
     }
   }
@@ -660,8 +951,8 @@ onMounted(() => {
       min-width: 120px;
       
       :deep(.el-input__wrapper) {
-        background: #252526;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: @dy-bg-elevated;
+        border: @dy-border-default;
         box-shadow: none;
       }
     }
@@ -672,8 +963,8 @@ onMounted(() => {
   margin-bottom: 20px;
   
   .stat-card {
-    background: #161618;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: @dy-bg-container;
+    border: @dy-border-default;
     border-radius: 8px;
     
     :deep(.el-card__body) {
@@ -702,13 +993,14 @@ onMounted(() => {
         .stat-number {
           font-size: 20px;
           font-weight: 600;
-          color: rgba(255, 255, 255, 0.88);
+          color: @dy-text-primary;
           line-height: 1.2;
+          font-family: "DIN Condensed", sans-serif;
         }
         
         .stat-label {
           font-size: 13px;
-          color: rgba(255, 255, 255, 0.55);
+          color: @dy-text-tertiary;
           margin-top: 4px;
         }
       }
@@ -731,7 +1023,7 @@ onMounted(() => {
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #FE2C55;
+    color: @dy-brand-red;
     font-weight: 500;
   }
   
@@ -742,17 +1034,17 @@ onMounted(() => {
 }
 
 .table-container {
-  background: #161618;
+  background: @dy-bg-container;
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: @dy-border-default;
   
   .video-table-responsive {
     // 增强表格行悬停效果
     :deep(.el-table__body) {
       .el-table__row {
-        cursor: default; // 整行默认光标
+        cursor: default;
         
         &:hover {
           background-color: rgba(37, 244, 238, 0.08) !important;
@@ -765,15 +1057,16 @@ onMounted(() => {
             
             // 悬停时数字计数增强
             .views-count, .likes-count {
-              color: #25F4EE !important;
+              color: @dy-brand-cyan !important;
               font-weight: 600;
             }
             
-            // 悬停时状态标签增强
-            .status-tag {
-              opacity: 0.9;
+            // 悬停时标签增强
+            .status-tag, .category-tag {
+              opacity: 0.95;
               transform: translateY(-1px);
               transition: all 0.2s ease;
+              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
             }
           }
         }
@@ -793,25 +1086,25 @@ onMounted(() => {
     
     // 修正单元格样式
     :deep(.el-table__cell) {
-      color: rgba(255, 255, 255, 0.88) !important;
+      color: @dy-text-primary !important;
       background-color: transparent !important;
       padding: 12px 8px !important;
       
       .cell {
-        color: rgba(255, 255, 255, 0.88) !important;
+        color: @dy-text-primary !important;
       }
     }
     
     // 修正表头样式
     :deep(.el-table__header) {
       th {
-        background: #252526 !important;
-        border-color: rgba(255, 255, 255, 0.08) !important;
-        color: rgba(255, 255, 255, 0.88) !important;
+        background: @dy-bg-elevated !important;
+        border-color: @dy-border-default !important;
+        color: @dy-text-primary !important;
         
         .cell {
           font-weight: 600;
-          color: rgba(255, 255, 255, 0.95) !important;
+          color: @dy-text-secondary !important;
         }
       }
     }
@@ -824,7 +1117,7 @@ onMounted(() => {
     border-radius: 4px;
     overflow: hidden;
     margin: 0 auto;
-    cursor: pointer; // 封面使用指针光标
+    cursor: pointer;
     transition: all 0.3s ease;
     
     &:hover {
@@ -835,7 +1128,6 @@ onMounted(() => {
         transform: scale(1.05);
       }
       
-      // 添加播放图标覆盖层
       &::after {
         content: '▶';
         position: absolute;
@@ -881,11 +1173,11 @@ onMounted(() => {
   }
   
   .video-title-cell {
-    cursor: pointer; // 标题使用指针光标
+    cursor: pointer;
     transition: color 0.2s ease;
     
     &:hover {
-      color: #25F4EE !important;
+      color: @dy-brand-cyan !important;
     }
   }
   
@@ -893,7 +1185,7 @@ onMounted(() => {
     display: flex;
     align-items: center;
     gap: 8px;
-    cursor: pointer; // 作者信息使用指针光标
+    cursor: pointer;
     
     &:hover {
       .el-avatar {
@@ -901,7 +1193,7 @@ onMounted(() => {
       }
       
       .author-name {
-        color: #25F4EE !important;
+        color: @dy-brand-cyan !important;
       }
     }
     
@@ -911,14 +1203,53 @@ onMounted(() => {
     
     .author-name {
       font-size: 13px;
-      color: rgba(255, 255, 255, 0.88);
+      color: @dy-text-primary;
       transition: color 0.2s ease;
     }
   }
   
+  // 分类标签样式（增强对比度）
   .category-tag {
-    cursor: default; // 分类标签默认光标
+    font-weight: 600 !important;
+    font-size: 12px;
+    height: 24px;
+    line-height: 22px;
+    border: none !important;
+    min-width: 40px;
+    text-align: center;
     transition: all 0.2s ease;
+    cursor: default;
+    
+    // 根据不同分类应用不同颜色
+    &[data-category="life"] {
+      background: @dy-tag-life-bg !important;
+      color: @dy-tag-life-text !important;
+      border: 1px solid rgba(64, 158, 255, 0.4) !important;
+    }
+    
+    &[data-category="entertainment"] {
+      background: @dy-tag-entertainment-bg !important;
+      color: @dy-tag-entertainment-text !important;
+      border: 1px solid rgba(156, 39, 176, 0.4) !important;
+    }
+    
+    &[data-category="knowledge"] {
+      background: @dy-tag-knowledge-bg !important;
+      color: @dy-tag-knowledge-text !important;
+      border: 1px solid rgba(255, 152, 0, 0.4) !important;
+    }
+    
+    &[data-category="game"] {
+      background: @dy-tag-game-bg !important;
+      color: @dy-tag-game-text !important;
+      border: 1px solid rgba(233, 30, 99, 0.4) !important;
+    }
+    
+    &[data-category="music"] {
+      background: @dy-tag-music-bg !important;
+      color: @dy-tag-music-text !important;
+      border: 1px solid rgba(0, 188, 212, 0.4) !important;
+    }
     
     &:hover {
       opacity: 0.9;
@@ -929,23 +1260,78 @@ onMounted(() => {
   .views-count,
   .likes-count {
     font-family: "DIN Condensed", "DIN Alternate", sans-serif;
-    color: #25F4EE;
+    color: @dy-brand-cyan;
     font-size: 13px;
     font-weight: 500;
-    cursor: default; // 数字使用默认光标
+    cursor: default;
     
     &:hover {
-      color: #FE2C55 !important;
+      color: @dy-brand-red !important;
     }
   }
   
+  // 状态标签样式（增强对比度）
   .status-tag {
-    cursor: pointer; // 状态标签使用指针光标
+    font-weight: 600 !important;
+    font-size: 12px;
+    height: 24px;
+    line-height: 22px;
+    border: none !important;
+    min-width: 60px;
+    text-align: center;
     transition: all 0.2s ease;
+    cursor: pointer;
     
-    &:hover {
-      opacity: 0.9;
-      transform: translateY(-1px);
+    // 待审核
+    &.el-tag--warning {
+      background: @dy-tag-warning-bg !important;
+      color: @dy-tag-warning-text !important;
+      border: 1px solid rgba(230, 162, 60, 0.4) !important;
+      
+      &:hover {
+        background: rgba(230, 162, 60, 0.4) !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(230, 162, 60, 0.2);
+      }
+    }
+    
+    // 已通过
+    &.el-tag--success {
+      background: @dy-tag-success-bg !important;
+      color: @dy-tag-success-text !important;
+      border: 1px solid rgba(103, 194, 58, 0.4) !important;
+      
+      &:hover {
+        background: rgba(103, 194, 58, 0.4) !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(103, 194, 58, 0.2);
+      }
+    }
+    
+    // 已拒绝
+    &.el-tag--danger {
+      background: @dy-tag-danger-bg !important;
+      color: @dy-tag-danger-text !important;
+      border: 1px solid rgba(245, 108, 108, 0.4) !important;
+      
+      &:hover {
+        background: rgba(245, 108, 108, 0.4) !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(245, 108, 108, 0.2);
+      }
+    }
+    
+    // 已下架
+    &.el-tag--info {
+      background: @dy-tag-info-bg !important;
+      color: @dy-tag-info-text !important;
+      border: 1px solid rgba(144, 147, 153, 0.4) !important;
+      
+      &:hover {
+        background: rgba(144, 147, 153, 0.4) !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(144, 147, 153, 0.2);
+      }
     }
   }
   
@@ -961,7 +1347,7 @@ onMounted(() => {
     
     .action-btn {
       transition: all 0.2s ease;
-      cursor: pointer; // 按钮使用指针光标
+      cursor: pointer;
       
       &:hover {
         transform: translateY(-1px);
@@ -980,10 +1366,10 @@ onMounted(() => {
   justify-content: center;
   
   :deep(.el-pagination) {
-    --el-pagination-text-color: rgba(255, 255, 255, 0.88);
-    --el-pagination-button-disabled-bg-color: #252526;
-    --el-pagination-bg-color: #161618;
-    --el-pagination-button-bg-color: #252526;
+    --el-pagination-text-color: @dy-text-secondary;
+    --el-pagination-button-disabled-bg-color: @dy-bg-elevated;
+    --el-pagination-bg-color: @dy-bg-container;
+    --el-pagination-button-bg-color: @dy-bg-elevated;
     
     .btn-prev, .btn-next {
       cursor: pointer;
@@ -994,17 +1380,17 @@ onMounted(() => {
     }
     
     .el-pager li {
-      background: #252526;
-      color: rgba(255, 255, 255, 0.88);
+      background: @dy-bg-elevated;
+      color: @dy-text-secondary;
       cursor: pointer;
       
       &:hover {
-        color: #25F4EE !important;
+        color: @dy-brand-cyan !important;
         background-color: rgba(37, 244, 238, 0.1) !important;
       }
       
       &.active {
-        background: #FE2C55;
+        background: @dy-brand-red;
         color: white;
         cursor: default;
       }
@@ -1012,11 +1398,11 @@ onMounted(() => {
     
     .el-pagination__jump {
       .el-input__wrapper {
-        background: #252526;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: @dy-bg-elevated;
+        border: @dy-border-default;
         
         .el-input__inner {
-          color: rgba(255, 255, 255, 0.88);
+          color: @dy-text-secondary;
         }
       }
     }
@@ -1027,6 +1413,24 @@ onMounted(() => {
 @media (max-width: 768px) {
   .admin-video-manage-container {
     padding: 12px;
+  }
+  
+  .filter-hint {
+    padding: 10px;
+    
+    .hint-content {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      
+      .hint-stats {
+        margin-left: 0;
+      }
+      
+      .hint-clear {
+        align-self: flex-end;
+      }
+    }
   }
   
   .search-filter-section {
@@ -1071,6 +1475,14 @@ onMounted(() => {
         }
       }
     }
+  }
+  
+  // 移动端标签样式调整
+  .category-tag, .status-tag {
+    font-size: 11px !important;
+    height: 22px !important;
+    line-height: 20px !important;
+    min-width: 36px !important;
   }
 }
 

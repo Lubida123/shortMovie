@@ -7,72 +7,74 @@
         <el-button type="primary" :icon="CirclePlus" @click="handleAddRole">新增角色</el-button>
       </div>
 
-      <el-table 
-        :data="roleList" 
-        border 
-        stripe 
-        class="role-table"
-        v-loading="loading"
-        @row-click="handleRoleClick"
-        :row-class-name="tableRowClassName"
-        height="calc(100vh - 220px)"
-      >
-        <el-table-column prop="roleCode" label="角色编码" min-width="120" fixed="left">
-          <template #default="scope">
-            <div class="role-code-cell">
-              <el-icon><Key /></el-icon>
-              <span>{{ scope.row.roleCode }}</span>
-              <el-tag v-if="scope.row.roleCode === 'admin'" size="small" type="danger" class="role-tag">
-                系统
-              </el-tag>
-            </div>
-          </template>
-        </el-table-column>
-        
-        <el-table-column prop="roleName" label="角色名称" min-width="120">
-          <template #default="scope">
-            <div class="role-name-cell">
-              <el-icon><UserFilled /></el-icon>
-              <span>{{ scope.row.roleName }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        
-        <el-table-column prop="description" label="角色描述" min-width="180">
-          <template #default="scope">
-            <div class="role-description-cell">
-              <el-icon><Document /></el-icon>
-              <span>{{ scope.row.description || '无描述' }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        
-        <el-table-column label="操作" width="160" fixed="right">
-          <template #default="scope">
-            <div class="role-actions">
-              <el-button 
-                type="primary" 
-                size="small" 
-                @click.stop="handleEditRole(scope.row)"
-                :icon="EditPen"
-                class="action-btn edit-btn"
-              >
-                编辑
-              </el-button>
-              <el-button 
-                type="danger" 
-                size="small" 
-                @click.stop="handleDeleteRole(scope.row.roleCode)"
-                :icon="Delete"
-                class="action-btn delete-btn"
-                :disabled="scope.row.roleCode === 'admin'"
-              >
-                删除
-              </el-button>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
+      <!-- 表格容器，添加独立的滚动容器 -->
+      <div class="table-scroll-wrapper">
+        <el-table 
+          :data="roleList" 
+          border 
+          stripe 
+          class="role-table"
+          v-loading="loading"
+          @row-click="handleRoleClick"
+          :row-class-name="tableRowClassName"
+        >
+          <el-table-column prop="roleCode" label="角色编码" min-width="120">
+            <template #default="scope">
+              <div class="role-code-cell">
+                <el-icon><Key /></el-icon>
+                <span>{{ scope.row.roleCode }}</span>
+                <el-tag v-if="scope.row.roleCode === 'admin'" size="small" class="admin-role-tag">
+                  管理员
+                </el-tag>
+              </div>
+            </template>
+          </el-table-column>
+          
+          <el-table-column prop="roleName" label="角色名称" min-width="120">
+            <template #default="scope">
+              <div class="role-name-cell">
+                <el-icon><UserFilled /></el-icon>
+                <span>{{ scope.row.roleName }}</span>
+              </div>
+            </template>
+          </el-table-column>
+          
+          <el-table-column prop="description" label="角色描述" min-width="180">
+            <template #default="scope">
+              <div class="role-description-cell">
+                <el-icon><Document /></el-icon>
+                <span>{{ scope.row.description || '无描述' }}</span>
+              </div>
+            </template>
+          </el-table-column>
+          
+          <el-table-column label="操作" width="160">
+            <template #default="scope">
+              <div class="role-actions">
+                <el-button 
+                  type="primary" 
+                  size="small" 
+                  @click.stop="handleEditRole(scope.row)"
+                  :icon="EditPen"
+                  class="action-btn edit-btn"
+                >
+                  编辑
+                </el-button>
+                <el-button 
+                  type="danger" 
+                  size="small" 
+                  @click.stop="handleDeleteRole(scope.row.roleCode)"
+                  :icon="Delete"
+                  class="action-btn delete-btn"
+                  :disabled="scope.row.roleCode === 'admin'"
+                >
+                  删除
+                </el-button>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
       
       <!-- 统计信息 -->
       <div class="role-stats">
@@ -81,8 +83,8 @@
           <span class="stat-value">{{ roleList.length }}</span>
         </div>
         <div class="stat-item">
-          <span class="stat-label">系统角色:</span>
-          <span class="stat-value">{{ systemRoleCount }}</span>
+          <span class="stat-label">管理员角色:</span>
+          <span class="stat-value">{{ adminRoleCount }}</span>
         </div>
         <div class="stat-item">
           <span class="stat-label">自定义角色:</span>
@@ -96,8 +98,8 @@
       <div class="permission-header">
         <div class="permission-title">
           <h3>权限配置 - {{ selectedRole.roleName }}</h3>
-          <el-tag :type="selectedRole.roleCode === 'admin' ? 'danger' : 'success'" size="small">
-            {{ selectedRole.roleCode === 'admin' ? '系统内置角色' : '自定义角色' }}
+          <el-tag class="admin-role-tag-header" size="small" :data-role-type="selectedRole.roleCode === 'admin' ? 'admin' : 'custom'">
+            {{ selectedRole.roleCode === 'admin' ? '系统管理员' : '自定义角色' }}
           </el-tag>
         </div>
         <div class="permission-actions">
@@ -134,7 +136,7 @@
           </div>
           <div class="permission-stat-content">
             <div class="permission-stat-number">{{ categoryCount }}</div>
-            <div class="permission-stat-label">权限分类</div>
+            <div class="stat-label">权限分类</div>
           </div>
         </div>
       </div>
@@ -303,8 +305,19 @@ const loading = ref(false)
 const savingPermission = ref(false)
 const savingRole = ref(false)
 
-// 角色列表
-const roleList = ref([])
+// 角色列表 - 只显示管理员和自定义角色，移除普通用户
+const roleList = ref([
+  {
+    roleCode: 'admin',
+    roleName: '管理员',
+    description: '拥有所有权限'
+  },
+  {
+    roleCode: 'editor',
+    roleName: '编辑',
+    description: '可以编辑视频和内容'
+  }
+])
 // 选中的角色
 const selectedRole = ref(null)
 
@@ -389,8 +402,8 @@ const leafPermissionCount = computed(() => {
   return countLeafNodes(permissionTree.value)
 })
 
-// 角色统计
-const systemRoleCount = computed(() => {
+// 角色统计 - 只统计管理员和自定义角色
+const adminRoleCount = computed(() => {
   return roleList.value.filter(role => role.roleCode === 'admin').length
 })
 
@@ -420,17 +433,18 @@ const filterNode = (value, data) => {
   return data.permissionName.includes(value) || data.permissionCode.includes(value)
 }
 
-// 获取角色列表
+// 获取角色列表 - 过滤掉普通用户角色
 const getRoleListFn = async () => {
   try {
     loading.value = true
     const res = await getRoleList()
-    roleList.value = res
+    // 过滤掉普通用户角色 (roleCode 为 'user')
+    roleList.value = res.filter(role => role.roleCode !== 'user')
     
     // 默认选中第一个角色
-    if (res.length > 0 && !selectedRole.value) {
-      selectedRole.value = res[0]
-      getRolePermissionFn(res[0].roleCode)
+    if (roleList.value.length > 0 && !selectedRole.value) {
+      selectedRole.value = roleList.value[0]
+      getRolePermissionFn(roleList.value[0].roleCode)
     }
   } catch (error) {
     ElMessage.error('获取角色列表失败')
@@ -634,6 +648,10 @@ watch(permissionSearch, (val) => {
 
 // 初始化
 onMounted(() => {
+  // 默认选中第一个角色
+  if (roleList.value.length > 0) {
+    selectedRole.value = roleList.value[0]
+  }
   getRoleListFn()
   getPermissionTreeFn()
 })
@@ -651,6 +669,14 @@ onMounted(() => {
 @dy-brand-red: #FE2C55;
 @dy-brand-cyan: #25F4EE;
 
+// 标签颜色变量（增强对比度）
+@tag-admin-bg: rgba(254, 44, 85, 0.3);
+@tag-admin-text: #FF6B8B;
+@tag-admin-border: rgba(254, 44, 85, 0.5);
+@tag-custom-bg: rgba(64, 158, 255, 0.3);
+@tag-custom-text: #80C5FF;
+@tag-custom-border: rgba(64, 158, 255, 0.5);
+
 .admin-permission-manage-container {
   min-height: calc(100vh - 80px);
   background: @dy-bg-body;
@@ -659,6 +685,8 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 520px 1fr;
   gap: 20px;
+  height: calc(100vh - 40px);
+  overflow: hidden;
 
   // 角色列表区域（左侧）
   .role-list-container {
@@ -668,7 +696,8 @@ onMounted(() => {
     padding: 20px;
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 120px);
+    height: 100%;
+    overflow: hidden;
 
     .role-header {
       display: flex;
@@ -677,6 +706,7 @@ onMounted(() => {
       margin-bottom: 20px;
       padding-bottom: 16px;
       border-bottom: @dy-border-default;
+      flex-shrink: 0;
       
       h3 {
         font-size: 18px;
@@ -686,13 +716,40 @@ onMounted(() => {
       }
     }
 
-    .role-table {
+    // 表格滚动包装器 - 修复滚动问题
+    .table-scroll-wrapper {
       flex: 1;
+      overflow: auto;
+      margin-bottom: 16px;
+      min-height: 0; // 重要：确保flex容器可以正确分配空间
+      
+      &::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      
+      &::-webkit-scrollbar-track {
+        background: @dy-bg-container;
+      }
+      
+      &::-webkit-scrollbar-thumb {
+        background: @dy-text-tertiary;
+        border-radius: 3px;
+        transition: background 0.2s ease;
+        
+        &:hover {
+          background: @dy-text-secondary;
+        }
+      }
+    }
+
+    .role-table {
+      width: 100%;
+      min-width: 480px; // 确保表格有最小宽度，避免压缩
       --el-table-text-color: @dy-text-primary;
       --el-table-row-hover-bg-color: rgba(37, 244, 238, 0.08);
       --el-table-header-text-color: @dy-text-secondary;
       --el-table-border-color: rgba(255, 255, 255, 0.08);
-      margin-bottom: 16px;
       font-size: 13px;
 
       ::v-deep(.el-table__header-wrapper) {
@@ -702,6 +759,9 @@ onMounted(() => {
           font-size: 14px;
           padding: 14px 8px !important;
           border-color: rgba(255, 255, 255, 0.08) !important;
+          position: sticky;
+          top: 0;
+          z-index: 1;
           
           .cell {
             color: @dy-text-secondary !important;
@@ -713,21 +773,7 @@ onMounted(() => {
       }
 
       ::v-deep(.el-table__body-wrapper) {
-        // 确保表格可以横向滚动
         overflow-x: auto;
-        
-        &::-webkit-scrollbar {
-          height: 6px;
-        }
-        
-        &::-webkit-scrollbar-track {
-          background: @dy-bg-container;
-        }
-        
-        &::-webkit-scrollbar-thumb {
-          background: @dy-text-tertiary;
-          border-radius: 3px;
-        }
         
         tr {
           cursor: pointer;
@@ -755,12 +801,7 @@ onMounted(() => {
         .el-table__cell {
           padding: 12px 8px !important;
           border-color: rgba(255, 255, 255, 0.08) !important;
-          
-          &.el-table__cell-fixed-left,
-          &.el-table__cell-fixed-right {
-            background: @dy-bg-container !important;
-            z-index: 2 !important;
-          }
+          white-space: nowrap;
         }
       }
       
@@ -780,11 +821,25 @@ onMounted(() => {
           font-weight: 500;
         }
         
-        .role-tag {
+        // 管理员角色标签样式（增强对比度）
+        .admin-role-tag {
           margin-left: 4px;
-          height: 20px;
-          line-height: 18px;
-          font-size: 10px;
+          height: 22px;
+          line-height: 20px;
+          font-size: 11px;
+          font-weight: 600;
+          background: @tag-admin-bg !important;
+          color: @tag-admin-text !important;
+          border: 1px solid @tag-admin-border !important;
+          border-radius: 4px;
+          padding: 0 6px;
+          transition: all 0.2s ease;
+          
+          &:hover {
+            background: rgba(254, 44, 85, 0.4) !important;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(254, 44, 85, 0.2);
+          }
         }
       }
       
@@ -824,27 +879,27 @@ onMounted(() => {
           -webkit-box-orient: vertical;
           overflow: hidden;
           text-overflow: ellipsis;
+          min-width: 150px;
         }
       }
       
-      // 操作列样式 - 修复覆盖问题
+      // 操作列样式
       .role-actions {
-        display: flex !important;
-        gap: 8px !important;
-        justify-content: center !important;
-        align-items: center !important;
-        width: 100% !important;
-        min-width: 160px !important;
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
         
         .action-btn {
-          min-width: 68px !important;
-          height: 28px !important;
-          padding: 0 12px !important;
-          font-size: 12px !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          gap: 4px !important;
+          min-width: 68px;
+          height: 28px;
+          padding: 0 12px;
+          font-size: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
           
           &.edit-btn {
             background: rgba(64, 158, 255, 0.1) !important;
@@ -883,6 +938,7 @@ onMounted(() => {
       border-radius: 8px;
       border: @dy-border-default;
       margin-top: auto;
+      flex-shrink: 0;
       
       .stat-item {
         display: flex;
@@ -913,7 +969,7 @@ onMounted(() => {
     padding: 20px;
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 120px);
+    height: 100%;
     overflow: hidden;
 
     .permission-header {
@@ -923,6 +979,7 @@ onMounted(() => {
       margin-bottom: 20px;
       padding-bottom: 16px;
       border-bottom: @dy-border-default;
+      flex-shrink: 0;
       
       .permission-title {
         display: flex;
@@ -936,10 +993,31 @@ onMounted(() => {
           margin: 0;
         }
         
-        .el-tag {
+        // 权限配置标题旁边的标签样式（增强对比度）
+        .admin-role-tag-header {
           font-size: 12px;
           height: 24px;
           line-height: 22px;
+          font-weight: 600;
+          border: none !important;
+          
+          &[data-role-type="admin"] {
+            background: @tag-admin-bg !important;
+            color: @tag-admin-text !important;
+            border: 1px solid @tag-admin-border !important;
+          }
+          
+          &[data-role-type="custom"] {
+            background: @tag-custom-bg !important;
+            color: @tag-custom-text !important;
+            border: 1px solid @tag-custom-border !important;
+          }
+          
+          &:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+            transition: all 0.2s ease;
+          }
         }
       }
       
@@ -955,6 +1033,7 @@ onMounted(() => {
       grid-template-columns: repeat(3, 1fr);
       gap: 16px;
       margin-bottom: 20px;
+      flex-shrink: 0;
       
       .permission-stat-card {
         background: @dy-bg-elevated;
@@ -994,7 +1073,7 @@ onMounted(() => {
             font-family: "DIN Condensed", sans-serif;
           }
           
-          .permission-stat-label {
+          .stat-label {
             font-size: 13px;
             color: @dy-text-tertiary;
             margin-top: 4px;
@@ -1008,6 +1087,7 @@ onMounted(() => {
       display: flex;
       gap: 12px;
       margin-bottom: 20px;
+      flex-shrink: 0;
       
       .search-input {
         flex: 1;
@@ -1042,6 +1122,7 @@ onMounted(() => {
       border: @dy-border-default;
       border-radius: 8px;
       overflow: hidden;
+      min-height: 0; // 重要：确保flex容器可以正确分配空间
       
       .permission-tree {
         flex: 1;
@@ -1113,6 +1194,7 @@ onMounted(() => {
         padding: 12px 16px;
         background: rgba(0, 0, 0, 0.2);
         border-top: @dy-border-default;
+        flex-shrink: 0;
         
         .tree-stat-item {
           display: flex;
@@ -1150,7 +1232,7 @@ onMounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: calc(100vh - 120px);
+    height: 100%;
     
     .empty-content {
       text-align: center;
@@ -1283,12 +1365,12 @@ onMounted(() => {
     grid-template-columns: 480px 1fr;
     
     .role-actions {
-      flex-direction: column !important;
-      gap: 6px !important;
+      flex-direction: column;
+      gap: 6px;
       
       .action-btn {
-        width: 100% !important;
-        min-width: 100% !important;
+        width: 100%;
+        min-width: 100%;
       }
     }
   }
@@ -1299,6 +1381,7 @@ onMounted(() => {
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr;
     height: auto;
+    overflow: auto;
     
     .role-list-container,
     .permission-config-container,
@@ -1307,12 +1390,12 @@ onMounted(() => {
     }
     
     .role-actions {
-      flex-direction: row !important;
-      gap: 8px !important;
+      flex-direction: row;
+      gap: 8px;
       
       .action-btn {
-        width: auto !important;
-        min-width: 68px !important;
+        width: auto;
+        min-width: 68px;
       }
     }
   }
@@ -1334,12 +1417,25 @@ onMounted(() => {
     }
     
     .role-actions {
-      flex-direction: column !important;
-      gap: 6px !important;
+      flex-direction: column;
+      gap: 6px;
       
       .action-btn {
-        width: 100% !important;
-        min-width: 100% !important;
+        width: 100%;
+        min-width: 100%;
+      }
+    }
+    
+    // 移动端表格滚动优化
+    .table-scroll-wrapper {
+      min-width: 0;
+      
+      .role-table {
+        min-width: 0;
+        
+        ::v-deep(.el-table__body-wrapper) {
+          overflow-x: auto;
+        }
       }
     }
   }

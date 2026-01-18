@@ -33,6 +33,37 @@
   --dy-hover-transform: translateY(-2px);
   --dy-active-transform: translateY(0);
   --dy-hover-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+
+  /* 标签专用颜色（增强对比度） */
+  --dy-tag-admin-bg: rgba(254, 44, 85, 0.3);
+  --dy-tag-admin-text: #FF6B8B;
+  --dy-tag-user-bg: rgba(103, 194, 58, 0.3);
+  --dy-tag-user-text: #85D475;
+  --dy-tag-active-bg: rgba(103, 194, 58, 0.3);
+  --dy-tag-active-text: #85D475;
+  --dy-tag-disabled-bg: rgba(144, 147, 153, 0.3);
+  --dy-tag-disabled-text: #A8ABB2;
+  --dy-tag-warning-bg: rgba(230, 162, 60, 0.3);
+  --dy-tag-warning-text: #E6C25C;
+  --dy-tag-success-bg: rgba(103, 194, 58, 0.3);
+  --dy-tag-success-text: #85D475;
+  --dy-tag-danger-bg: rgba(245, 108, 108, 0.3);
+  --dy-tag-danger-text: #FF8A8A;
+  --dy-tag-info-bg: rgba(144, 147, 153, 0.3);
+  --dy-tag-info-text: #A8ABB2;
+  
+  /* 分类标签颜色 */
+  --dy-tag-life-bg: rgba(64, 158, 255, 0.3);
+  --dy-tag-life-text: #80C5FF;
+  --dy-tag-entertainment-bg: rgba(156, 39, 176, 0.3);
+  --dy-tag-entertainment-text: #C678DD;
+  --dy-tag-knowledge-bg: rgba(255, 152, 0, 0.3);
+  --dy-tag-knowledge-text: #FFB74D;
+  --dy-tag-game-bg: rgba(233, 30, 99, 0.3);
+  --dy-tag-game-text: #F48FB1;
+  --dy-tag-music-bg: rgba(0, 188, 212, 0.3);
+  --dy-tag-music-text: #80DEEA;
+
 }
 
 /* 全局重置：确保Element Plus组件适配深色模式 */
@@ -133,5 +164,23 @@ a, .el-link {
     border-color: rgba(37, 244, 238, 0.2) !important;
     transform: var(--dy-hover-transform);
     box-shadow: var(--dy-hover-shadow) !important;
+  }
+}
+
+/* 全局标签样式增强（深色主题适配） */
+.el-tag {
+  --el-tag-border-color: transparent;
+  font-weight: 500;
+  
+  /* 确保文字和背景的对比度 */
+  &.el-tag--dark {
+    --el-tag-text-color: rgba(255, 255, 255, 0.95);
+  }
+  
+  /* 悬停效果增强 */
+  &:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
   }
 }
