@@ -1,8 +1,10 @@
 ﻿<script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { getVideoList } from '../api/video'
 
 const emit = defineEmits(['load-more', 'comment-like', 'comment-reply'])
+const router = useRouter()
 
 const videos = ref([])
 const currentIndex = ref(0)
@@ -99,6 +101,9 @@ const normalizeVideo = (item) => {
     id: item.videoId || item.id,
     title: item.title || item.videoTitle || '未命名视频',
     author: authorName.startsWith('@') ? authorName : `@${authorName}`,
+    authorName,
+    authorId: item.authorId || item.userId || item.uid || item.userID,
+    authorAvatar: item.authorAvatar || item.avatar || '',
     desc: item.description || item.desc || '',
     duration: formatDuration(item.duration || 0),
     cover,
@@ -330,6 +335,7 @@ const goPrev = () => {
 
 const handleWheel = (e) => {
   if (isSwitching.value || isSeeking.value) return
+  if (showComments.value) return
   if (!videos.value.length) return
   if (e.deltaY === 0) return
   isSwitching.value = true
@@ -344,6 +350,30 @@ const handleWheel = (e) => {
   }
 }
 
+const getAuthorKey = (video) => {
+  if (video.authorId !== undefined && video.authorId !== null && video.authorId !== '') {
+    return video.authorId
+  }
+  return video.authorName || video.author || 'unknown'
+}
+
+const openCreatorProfile = (video) => {
+  const authorKey = getAuthorKey(video)
+  const works = videos.value.filter((item) => getAuthorKey(item) === authorKey)
+  const payload = {
+    id: video.authorId || authorKey,
+    name: video.authorName || video.author || '匿名',
+    account: video.author || `@${video.authorName || 'unknown'}`,
+    avatar: video.authorAvatar || defaultAvatar,
+    works,
+  }
+  sessionStorage.setItem('creator_profile', JSON.stringify(payload))
+  router.push({
+    name: 'creator',
+    params: { userId: String(payload.id || 'unknown') },
+  })
+}
+
 const handleFullscreenChange = () => {
   isFullscreen.value = Boolean(document.fullscreenElement)
 }
@@ -351,13 +381,17 @@ const handleFullscreenChange = () => {
 const toggleFullscreen = async () => {
   const target = feedRef.value
   if (!target) return
-  if (document.fullscreenElement) {
-    await document.exitFullscreen()
+  try {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen()
+      return
+    }
+    if (target.requestFullscreen) {
+      await target.requestFullscreen()
+      target.focus?.()
+    }
+  } catch (error) {
     return
-  }
-  if (target.requestFullscreen) {
-    await target.requestFullscreen()
-    target.focus?.()
   }
 }
 
@@ -431,8 +465,8 @@ onBeforeUnmount(() => {
               @loadedmetadata="handleLoadedMetadata(index, $event)"
             ></video>
             <div class="player-info">
-              <div class="player-author">
-                <img class="avatar" src="../assets/img/avatar.png" alt="avatar" />
+              <div class="player-author" @click.stop="openCreatorProfile(video)">
+                <img class="avatar" :src="video.authorAvatar || defaultAvatar" alt="avatar" />
                 <span>{{ video.author }}</span>
               </div>
               <h1>{{ video.title }}</h1>
@@ -651,7 +685,6 @@ onBeforeUnmount(() => {
   color: #fff;
   text-shadow: 0 6rem 14rem rgba(0, 0, 0, 0.7);
   max-width: 70%;
-  pointer-events: none;
 }
 
 .avatar {
@@ -667,6 +700,7 @@ onBeforeUnmount(() => {
   gap: 10rem;
   font-weight: 600;
   margin-bottom: 6rem;
+  cursor: pointer;
 }
 
 .player-info h1 {

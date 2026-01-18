@@ -271,9 +271,10 @@ const handleUpdatePassword = async () => {
       newPassword: passwordForm.newPassword,
     })
     if (data?.code === 200) {
-      ElMessage.success('密码修改成功')
+      ElMessage.success('密码修改成功，请重新登录')
       passwordForm.oldPassword = ''
       passwordForm.newPassword = ''
+      await userStore.logout()
     } else {
       ElMessage.error(data?.message || '密码修改失败')
     }
@@ -335,7 +336,7 @@ onBeforeUnmount(() => {
       <div class="profile-header">
         <button type="button" class="avatar-btn" @click="openEditDialog">
           <el-avatar :size="88" :src="displayAvatar" class="avatar" />
-          <span class="avatar-tip">点击修改头像</span>
+          <span class="avatar-tip">修改个人资料</span>
         </button>
         <div class="profile-meta">
           <h1>{{ displayName }}</h1>
@@ -529,12 +530,15 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .profile-page {
+  height: 100vh;
   min-height: 100vh;
   background: var(--dy-bg-body);
   color: var(--dy-text-primary);
   padding: 88px 20px 80px;
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .profile-bg {

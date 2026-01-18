@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Home from '../views/Home.vue'
 import Login from '../views/Login.vue'
 import Profile from '../views/Profile.vue'
+import CreatorProfile from '../views/CreatorProfile.vue'
 import { useUserStore } from '../store/userStore'
 
 const routes = [
@@ -20,6 +21,11 @@ const routes = [
     path: '/profile',
     name: 'profile',
     component: Profile,
+  },
+  {
+    path: '/user/:userId',
+    name: 'creator',
+    component: CreatorProfile,
   },
 ]
 
