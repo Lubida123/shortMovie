@@ -1,7 +1,7 @@
 ﻿<script setup>
 import { computed, onMounted } from 'vue'
 import { useUserStore } from '../store/userStore'
-import VideoList from '../components/VideoList.vue'
+import VideoFeed from '../components/VideoFeed.vue'
 
 const userStore = useUserStore()
 const displayName = computed(
@@ -94,7 +94,7 @@ onMounted(() => {
       </header>
 
       <section class="video-shell">
-        <VideoList />
+        <VideoFeed />
       </section>
     </main>
 
