@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { getVideoList } from '../api/video'
 
 const emit = defineEmits(['load-more'])
@@ -12,10 +12,11 @@ const hasMore = ref(true)
 const loadError = ref('')
 const pageNum = ref(1)
 const pageSize = 8
+const videoRefs = ref([])
 let switchTimer = null
 
 const wrapperStyle = computed(() => ({
-  transform: `translateY(-${currentIndex.value * 100}%)`,
+  transform: `translate3d(0, -${currentIndex.value * 100}%, 0)`,
 }))
 
 const formatDuration = (seconds) => {
@@ -87,6 +88,27 @@ const fetchVideos = async () => {
   }
 }
 
+const syncPlayback = async (index) => {
+  await nextTick()
+  videoRefs.value.forEach((video, idx) => {
+    if (!video) return
+    if (idx === index) {
+      const result = video.play()
+      if (result && typeof result.catch === 'function') {
+        result.catch(() => {})
+      }
+    } else {
+      video.pause()
+    }
+  })
+}
+
+const setVideoRef = (el, index) => {
+  if (el) {
+    videoRefs.value[index] = el
+  }
+}
+
 const loadMoreIfNeeded = async () => {
   if (!hasMore.value || loading.value) return
   emit('load-more')
@@ -129,6 +151,24 @@ onMounted(() => {
   fetchVideos()
 })
 
+watch(
+  () => currentIndex.value,
+  (index) => {
+    if (videos.value.length) {
+      syncPlayback(index)
+    }
+  }
+)
+
+watch(
+  () => videos.value.length,
+  (length) => {
+    if (length) {
+      syncPlayback(currentIndex.value)
+    }
+  }
+)
+
 onBeforeUnmount(() => {
   if (switchTimer) {
     window.clearTimeout(switchTimer)
@@ -138,7 +178,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="feed-container" @wheel="handleWheel">
+  <section class="feed-container" tabindex="0" @wheel.passive.capture="handleWheel">
     <div v-if="loadError" class="empty-state">{{ loadError }}</div>
     <div v-else-if="videos.length === 0" class="empty-state">暂无视频</div>
     <div v-else class="video-wrapper" :style="wrapperStyle">
@@ -154,59 +194,36 @@ onBeforeUnmount(() => {
               autoplay
               loop
               playsinline
+              preload="metadata"
+              :ref="(el) => setVideoRef(el, index)"
             ></video>
-            <div class="player-overlay">
-              <div class="player-meta">
-                <span>#city-story</span>
-                <span>{{ video.duration }}</span>
+            <div class="player-info">
+              <div class="player-author">
+                <img class="avatar" src="../assets/img/avatar.png" alt="avatar" />
+                <span>{{ video.author }}</span>
               </div>
-              <div class="player-info">
-                <h1>{{ video.title }}</h1>
-                <p>{{ video.author }}</p>
-                <p class="desc">{{ video.desc }}</p>
-              </div>
-              <div class="player-progress">
-                <span>00:00</span>
-                <div class="progress-bar">
-                  <div
-                    class="progress-fill"
-                    :style="{ width: index === currentIndex ? '35%' : '0%' }"
-                  ></div>
-                </div>
-                <span>{{ video.duration }}</span>
-              </div>
-            </div>
-
-            <div class="player-actions">
-              <button class="action">
-                <img src="../assets/img/icon/love.svg" alt="like" />
-                <span>{{ video.likeCount }}</span>
-              </button>
-              <button class="action">
-                <img src="../assets/img/icon/message.svg" alt="comment" />
-                <span>{{ video.commentCount }}</span>
-              </button>
-              <button class="action">
-                <img src="../assets/img/icon/star-white.png" alt="collect" />
-                <span>{{ video.collectCount }}</span>
-              </button>
-              <button class="action">
-                <img src="../assets/img/icon/share-white.png" alt="share" />
-                <span>分享</span>
-              </button>
-            </div>
-
-            <div class="player-user">
-              <img class="avatar" src="../assets/img/avatar.png" alt="avatar" />
-              <div>
-                <div class="author">{{ video.author }}</div>
-                <div class="caption">{{ video.title }}</div>
-              </div>
+              <h1>{{ video.title }}</h1>
+              <p v-if="video.desc" class="desc">{{ video.desc }}</p>
             </div>
           </div>
-          <div class="player-footer">
-            <span>Reason: recommended</span>
-            <span>下一条：{{ videos[index + 1]?.title || '暂无' }}</span>
+
+          <div class="player-actions">
+            <button class="action">
+              <img src="../assets/img/icon/love.svg" alt="like" />
+              <span>{{ video.likeCount }}</span>
+            </button>
+            <button class="action">
+              <img src="../assets/img/icon/message.svg" alt="comment" />
+              <span>{{ video.commentCount }}</span>
+            </button>
+            <button class="action">
+              <img src="../assets/img/icon/star-white.png" alt="collect" />
+              <span>{{ video.collectCount }}</span>
+            </button>
+            <button class="action">
+              <img src="../assets/img/icon/share-white.png" alt="share" />
+              <span>分享</span>
+            </button>
           </div>
         </div>
       </article>
@@ -220,6 +237,7 @@ onBeforeUnmount(() => {
   width: 100%;
   overflow: hidden;
   position: relative;
+  overscroll-behavior: contain;
 }
 
 .video-wrapper {
@@ -234,10 +252,11 @@ onBeforeUnmount(() => {
 .video-item {
   height: 100%;
   width: 100%;
+  flex: 0 0 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16rem;
+  padding: 0;
   box-sizing: border-box;
 }
 
@@ -252,21 +271,26 @@ onBeforeUnmount(() => {
 .player-frame {
   width: 100%;
   height: 100%;
-  display: grid;
-  grid-template-rows: 1fr auto;
-  gap: 12rem;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28rem;
 }
 
 .player-cover {
   position: relative;
-  border-radius: 18rem;
+  border-radius: 16rem;
   overflow: hidden;
   height: 100%;
   min-height: 0;
+  flex: 1;
+  max-width: 1100rem;
   background-position: center;
   background-size: cover;
-  box-shadow: 0 24rem 60rem rgba(0, 0, 0, 0.45);
-  border: var(--dy-border-default);
+  background-color: #0b0d16;
+  box-shadow: 0 24rem 60rem rgba(0, 0, 0, 0.35);
+  border: 1rem solid rgba(148, 163, 184, 0.12);
 }
 
 .video-el {
@@ -282,71 +306,11 @@ onBeforeUnmount(() => {
   content: none;
 }
 
-.player-overlay {
-  position: relative;
-  height: 100%;
-  padding: 20rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  background: transparent;
-  z-index: 1;
-}
-
-.player-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12rem;
-}
-
-.player-info h1 {
-  margin: 0 0 6rem;
-  font-size: 32rem;
-}
-
-.player-info p {
-  margin: 0 0 6rem;
-  opacity: 0.9;
-}
-
-.desc {
-  font-size: 12rem;
-  color: #e3e3e3;
-}
-
-.player-progress {
-  display: flex;
-  align-items: center;
-  gap: 10rem;
-  font-size: 12rem;
-}
-
-.progress-bar {
-  flex: 1;
-  height: 2rem;
-  background: rgba(255, 255, 255, 0.35);
-  border-radius: 999rem;
-  transition: height 0.2s ease;
-}
-
-.player-progress:hover .progress-bar {
-  height: 4rem;
-}
-
-.progress-fill {
-  height: 100%;
-  background: #fff;
-  border-radius: inherit;
-  transition: width 0.4s ease;
-}
-
 .player-actions {
-  position: absolute;
-  right: 18rem;
-  bottom: 120rem;
   display: grid;
   gap: 14rem;
   z-index: 2;
+  min-width: 72rem;
 }
 
 .action {
@@ -375,18 +339,14 @@ onBeforeUnmount(() => {
   font-size: 12rem;
 }
 
-.player-user {
+.player-info {
   position: absolute;
-  left: 16rem;
+  left: 18rem;
   bottom: 18rem;
-  display: flex;
-  align-items: center;
-  gap: 12rem;
-  background: rgba(0, 0, 0, 0.45);
-  padding: 10rem 12rem;
-  border-radius: 14rem;
-  backdrop-filter: blur(6px);
   z-index: 2;
+  color: #fff;
+  text-shadow: 0 6rem 14rem rgba(0, 0, 0, 0.7);
+  max-width: 70%;
 }
 
 .avatar {
@@ -396,30 +356,42 @@ onBeforeUnmount(() => {
   border: 2rem solid #fff;
 }
 
-.author {
+.player-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 10rem;
+  font-weight: 600;
+  margin-bottom: 6rem;
+}
+
+.player-info h1 {
+  margin: 0 0 6rem;
+  font-size: 26rem;
   font-weight: 600;
 }
 
-.caption {
+.desc {
   font-size: 12rem;
-  color: #d6d6d6;
-}
-
-.player-footer {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12rem;
-  color: var(--dy-text-tertiary);
+  color: #e2e8f0;
+  opacity: 0.9;
 }
 
 @media (max-width: 980px) {
   .player-actions {
-    position: static;
     grid-template-columns: repeat(4, minmax(80rem, 1fr));
     background: rgba(18, 20, 30, 0.7);
     padding: 10rem;
     border-radius: 14rem;
     margin-top: 12rem;
+  }
+
+  .player-frame {
+    flex-direction: column;
+    gap: 16rem;
+  }
+
+  .player-cover {
+    max-width: 100%;
   }
 }
 </style>
