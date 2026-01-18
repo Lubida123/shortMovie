@@ -61,6 +61,7 @@ public class SecurityConfig {
                                 "/api/video/upload"  // 临时允许视频上传（仅用于测试）
                         ).permitAll()
                         .requestMatchers("/sendmsg").permitAll()
+                        .requestMatchers("/analysis/movie").permitAll()
                         // 其他请求需要认证
                         .anyRequest().authenticated()
                 )
