@@ -51,7 +51,7 @@ public class VideoController {
             Authentication authentication
     ) {
         // 从认证信息中获取用户ID（如果未认证，使用测试用户ID 1）
-        Long userId = 1L;  // 默认测试用户
+        Long userId = 2302L;  // 默认测试用户
         if (authentication != null && authentication.isAuthenticated()) {
             try {
                 userId = Long.parseLong(authentication.getName());

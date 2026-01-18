@@ -57,8 +57,9 @@ public class SecurityConfig {
                                 "/api/user/register",
                                 "/api/user/login",
                                 "/api/user/send-code",
-                                "cos/upload",
-                                "/api/video/upload"  // 临时允许视频上传（仅用于测试）
+                                "/api/video/upload",  // 临时允许视频上传（仅用于测试）
+                                "/api/video/list",    // 允许匿名访问视频列表
+                                "/api/video/*/detail" // 允许匿名访问视频详情
                         ).permitAll()
                         .requestMatchers("/sendmsg").permitAll()
                         // 其他请求需要认证

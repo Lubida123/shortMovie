@@ -63,8 +63,8 @@ mybatis-plus:
 tencent:
   cos:
     enabled: true
-    secret-id: ${TENCENT_SECRET_ID:default}
-    secret-key: ${TENCENT_SECRET_KEY:default}
+    secret-id:
+    secret-key:
     region: ap-guangzhou
     bucket-name: short-video-1396257793
     base-path: shortmovie/video/
