@@ -7,12 +7,14 @@ export const uploadVideo = (payload) => {
       formData.append(key, value)
     }
   })
-  return http.post('/video/upload', formData, {
+  return http.post('/api/video/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 }
 
-export const getVideoList = (params) => http.get('/video/list', { params })
+export const getVideoList = (params) => http.get('/api/video/list', { params })
+
+export const getVideoDetail = (videoId) => http.get(`/api/video/${videoId}`)
 
 export const recordPlay = (videoId, playRecord) =>
-  http.post(`/video/${videoId}/play`, playRecord)
+  http.post(`/api/video/${videoId}/play`, playRecord)

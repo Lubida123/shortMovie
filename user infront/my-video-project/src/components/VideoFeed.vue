@@ -8,6 +8,16 @@ import { useUserStore } from '../store/userStore' // 引入用户状态，用于
 
 const modules = [Mousewheel, Pagination]
 const userStore=userStore()
+const emit = defineEmits(['load-more'])
+const props = defineProps({
+  hasMore: {
+    type: Boolean,
+    default: true,
+  },
+})
+const swiperRef = ref(null)
+const isScrolling = ref(false)
+let scrollTimer = null
 
 const videos = ref([
  /* {
@@ -69,6 +79,49 @@ const handleSlideChange = (swiper) => {
   activeIndex.value = swiper.activeIndex
 }
 
+const handleSwiper = (swiper) => {
+  swiperRef.value = swiper
+}
+
+const maybeLoadMore = (nextIndex) => {
+  if (!props.hasMore) return
+  if (nextIndex >= videos.value.length - 2) {
+    emit('load-more')
+  }
+}
+
+const playNext = () => {
+  const nextIndex = activeIndex.value + 1
+  if (nextIndex >= videos.value.length) {
+    if (props.hasMore) {
+      emit('load-more')
+    }
+    return
+  }
+  swiperRef.value?.slideTo(nextIndex)
+  maybeLoadMore(nextIndex)
+}
+
+const playPrev = () => {
+  const prevIndex = activeIndex.value - 1
+  if (prevIndex < 0) return
+  swiperRef.value?.slideTo(prevIndex)
+}
+
+const handleWheel = (e) => {
+  if (isScrolling.value) return
+  if (!swiperRef.value) return
+  isScrolling.value = true
+  scrollTimer = window.setTimeout(() => {
+    isScrolling.value = false
+  }, 800)
+  if (e.deltaY > 0) {
+    playNext()
+  } else if (e.deltaY < 0) {
+    playPrev()
+  }
+}
+
 const toggleFullscreen = () => {
   isFullscreen.value = !isFullscreen.value
 }
@@ -79,17 +132,22 @@ watch(isFullscreen, (value) => {
 
 onBeforeUnmount(() => {
   document.body.classList.remove('dy-fullscreen')
+  if (scrollTimer) {
+    window.clearTimeout(scrollTimer)
+    scrollTimer = null
+  }
 })
 </script>
 
 <template>
-  <section class="dy-player" :class="{ fullscreen: isFullscreen }">
+  <section class="dy-player" :class="{ fullscreen: isFullscreen }" @wheel.passive="handleWheel">
     <swiper
       class="dy-swiper"
       :modules="modules"
       direction="vertical"
       :mousewheel="true"
       :pagination="{ clickable: true }"
+      @swiper="handleSwiper"
       @slide-change="handleSlideChange"
     >
       <swiper-slide v-for="(video, index) in videos" :key="video.id">

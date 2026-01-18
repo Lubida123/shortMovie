@@ -93,6 +93,12 @@ const onEnded = (id) => {
   reportPlay(id, true)
 }
 
+const extractPageList = (payload) => {
+  const pageData = payload?.data ?? payload
+  const list = pageData?.records ?? pageData?.list ?? []
+  return Array.isArray(list) ? list : []
+}
+
 const fetchVideos = async () => {
   if (loading.value || finished.value) return
   loading.value = true
@@ -102,19 +108,19 @@ const fetchVideos = async () => {
       pageNum: pageNum.value,
       pageSize,
     })
-    if (data?.code === 200) {
-      const list = data?.data?.list || data?.data?.records || data?.data || []
-      const mapped = list.map(normalizeVideo).filter((item) => item && item.id)
-      if (mapped.length === 0) {
-        finished.value = true
-      } else {
-        videos.value.push(...mapped)
-        pageNum.value += 1
-        await nextTick()
-      }
-    } else {
+    if (data?.code !== undefined && data?.code !== 200) {
       loadError.value = data?.message || '加载失败'
+      return
     }
+    const list = extractPageList(data)
+    const mapped = list.map(normalizeVideo).filter((item) => item && item.id)
+    if (mapped.length === 0) {
+      finished.value = true
+      return
+    }
+    videos.value.push(...mapped)
+    pageNum.value += 1
+    await nextTick()
   } catch (error) {
     loadError.value = '加载失败，请检查后端服务'
   } finally {

@@ -13,29 +13,33 @@ const toFormParams = (payload) => {
 const formHeaders = { 'Content-Type': 'application/x-www-form-urlencoded' }
 
 export const login = (payload) =>
-  http.post('/user/login', toFormParams(payload), { headers: formHeaders })
+  http.post('/api/user/login', toFormParams(payload), { headers: formHeaders })
 
 export const register = (payload) =>
-  http.post('/user/register', toFormParams(payload), { headers: formHeaders })
+  http.post('/api/user/register', toFormParams(payload), { headers: formHeaders })
 
 export const sendEmailCode = (payload) =>
-  http.post('/user/send-code', toFormParams(payload), { headers: formHeaders })
+  http.post('/api/user/send-code', toFormParams(payload), { headers: formHeaders })
 
-export const getProfile = () => http.get('/user/profile')
+export const getProfile = () => http.get('/api/user/profile')
 
-export const updateUserInfo = (data) => {
-  if (data instanceof FormData) {
-    return http.put('/user-info/update', data, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-  }
-  return http.put('/user-info/update', data)
-}
+export const updateUserInfo = (payload) =>
+  http.put('/api/user/profile', null, {
+    params: payload,
+  })
 
 export const updatePassword = (payload) =>
-  http.put('/user/password', toFormParams(payload), { headers: formHeaders })
+  http.put('/api/user/password', toFormParams(payload), { headers: formHeaders })
 
-export const logout = () => http.post('/user/logout')
+export const logout = () => http.post('/api/user/logout')
+
+export const uploadAvatar = (file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return http.post('/cos/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}
 
 export const userApi = {
   login,
@@ -45,4 +49,5 @@ export const userApi = {
   updateUserInfo,
   updatePassword,
   logout,
+  uploadAvatar,
 }

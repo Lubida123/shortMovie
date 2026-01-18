@@ -10,6 +10,7 @@ const userStore = useUserStore()
 const loading = ref(false)
 const passwordLoading = ref(false)
 const logoutLoading = ref(false)
+const editDialogVisible = ref(false)
 const avatarInput = ref(null)
 const avatarFile = ref(null)
 const avatarPreview = ref('')
@@ -18,8 +19,9 @@ const profile = ref(null)
 
 const editForm = reactive({
   nickname: '',
-  gender: '',
-  description: '',
+  phone: '',
+  email: '',
+  avatar: '',
 })
 
 const passwordForm = reactive({
@@ -43,24 +45,35 @@ const followCount = computed(() => profile.value?.followCount ?? 0)
 const likeCount = computed(() => profile.value?.likeCount ?? 0)
 const signature = computed(() => profile.value?.description || profile.value?.signature || '暂无签名')
 
-const fillProfile = (data) => {
-  profile.value = data || null
+const syncEditForm = (data) => {
   editForm.nickname = data?.nickname || data?.username || ''
-  editForm.gender = data?.gender || ''
-  editForm.description = data?.description || data?.signature || ''
+  editForm.phone = data?.phone || ''
+  editForm.email = data?.email || ''
+  editForm.avatar = data?.avatar || data?.avatarUrl || ''
   avatarPreview.value = ''
   avatarFile.value = null
 }
 
 const fetchProfile = async () => {
   try {
-    const data = await userStore.fetchProfile()
-    if (data) {
-      fillProfile(data)
+    const { data } = await userApi.getProfile()
+    if (data?.code === 200) {
+      profile.value = data?.data || null
+      syncEditForm(profile.value)
+      if (userStore.setUserInfo) {
+        userStore.setUserInfo(profile.value)
+      }
+      return
     }
+    ElMessage.error(data?.message || '获取用户信息失败')
   } catch (error) {
     ElMessage.error('获取用户信息失败')
   }
+}
+
+const openEditDialog = () => {
+  syncEditForm(profile.value)
+  editDialogVisible.value = true
 }
 
 const triggerAvatar = () => {
@@ -81,24 +94,33 @@ const handleSave = async () => {
   }
   loading.value = true
   try {
-    let payload = {
-      nickname: editForm.nickname,
-      gender: editForm.gender,
-      description: editForm.description,
-    }
+    let avatarUrl = editForm.avatar
     if (avatarFile.value) {
-      const formData = new FormData()
-      Object.entries(payload).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          formData.append(key, value)
-        }
-      })
-      formData.append('avatar', avatarFile.value)
-      payload = formData
+      const { data: uploadRes } = await userApi.uploadAvatar(avatarFile.value)
+      if (uploadRes?.code === 200 && uploadRes?.data) {
+        avatarUrl = uploadRes.data
+      } else {
+        ElMessage.error(uploadRes?.msg || '头像上传失败')
+        return
+      }
     }
+    const payload = {
+      nickname: editForm.nickname,
+      phone: editForm.phone,
+      email: editForm.email,
+      avatar: avatarUrl,
+    }
+    Object.keys(payload).forEach((key) => {
+      if (payload[key] === '' || payload[key] === undefined || payload[key] === null) {
+        delete payload[key]
+      }
+    })
     const { data } = await userApi.updateUserInfo(payload)
     if (data?.code === 200) {
       ElMessage.success('修改成功')
+      editDialogVisible.value = false
+      avatarFile.value = null
+      avatarPreview.value = ''
       await fetchProfile()
     } else {
       ElMessage.error(data?.message || '修改失败')
@@ -167,7 +189,7 @@ onMounted(() => {
 
     <section class="profile-card">
       <div class="profile-header">
-        <button type="button" class="avatar-btn" @click="triggerAvatar">
+        <button type="button" class="avatar-btn" @click="openEditDialog">
           <el-avatar :size="88" :src="displayAvatar" class="avatar" />
           <span class="avatar-tip">点击修改头像</span>
         </button>
@@ -189,41 +211,12 @@ onMounted(() => {
         </div>
       </div>
 
-      <input
-        ref="avatarInput"
-        type="file"
-        accept="image/*"
-        class="hidden"
-        @change="handleAvatarChange"
-      />
-
       <section class="section">
         <div class="section-title">
           <h2>资料编辑</h2>
-          <el-button type="primary" :loading="loading" @click="handleSave">
-            保存修改
-          </el-button>
+          <el-button type="primary" @click="openEditDialog">编辑资料</el-button>
         </div>
-        <el-form label-position="top" class="form-grid">
-          <el-form-item label="昵称">
-            <el-input v-model="editForm.nickname" placeholder="请输入昵称" />
-          </el-form-item>
-          <el-form-item label="性别">
-            <el-select v-model="editForm.gender" placeholder="请选择性别">
-              <el-option label="保密" value="" />
-              <el-option label="男" value="男" />
-              <el-option label="女" value="女" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="简介" class="full">
-            <el-input
-              v-model="editForm.description"
-              type="textarea"
-              rows="3"
-              placeholder="介绍一下你自己"
-            />
-          </el-form-item>
-        </el-form>
+        <p class="section-tip">更新昵称、手机号、邮箱和头像地址。</p>
       </section>
 
       <section class="section">
@@ -249,6 +242,47 @@ onMounted(() => {
         </el-button>
       </div>
     </section>
+
+    <el-dialog v-model="editDialogVisible" title="编辑资料" width="420px">
+      <el-form label-position="top" class="dialog-form">
+        <el-form-item label="头像">
+          <div class="avatar-upload">
+            <el-avatar :size="44" :src="avatarPreview || editForm.avatar || displayAvatar" />
+            <div class="upload-actions">
+              <el-button @click="triggerAvatar">上传文件</el-button>
+              <span class="upload-hint">
+                {{ avatarFile ? avatarFile.name : '未选择文件' }}
+              </span>
+            </div>
+          </div>
+          <input
+            ref="avatarInput"
+            type="file"
+            accept="image/*"
+            class="hidden"
+            @change="handleAvatarChange"
+          />
+        </el-form-item>
+        <el-form-item label="昵称">
+          <el-input v-model="editForm.nickname" placeholder="请输入昵称" />
+        </el-form-item>
+        <el-form-item label="手机号">
+          <el-input v-model="editForm.phone" placeholder="请输入手机号" />
+        </el-form-item>
+        <el-form-item label="邮箱">
+          <el-input v-model="editForm.email" placeholder="请输入邮箱" />
+        </el-form-item>
+        <el-form-item label="头像地址">
+          <el-input v-model="editForm.avatar" placeholder="请输入头像 URL" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="loading" @click="handleSave">
+          保存
+        </el-button>
+      </template>
+    </el-dialog>
   </main>
 </template>
 
@@ -399,6 +433,32 @@ onMounted(() => {
   font-family: var(--font-heading);
 }
 
+.section-tip {
+  margin: 0;
+  color: var(--dy-text-tertiary);
+  font-size: 12px;
+}
+
+.avatar-upload {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.upload-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.upload-hint {
+  font-size: 12px;
+  color: var(--dy-text-tertiary);
+}
+
+.hidden {
+  display: none;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -406,19 +466,11 @@ onMounted(() => {
   width: 100%;
 }
 
-.form-grid .full {
-  grid-column: 1 / -1;
-}
-
 .logout-row {
   margin-top: 22px;
   display: flex;
   justify-content: center;
   width: 100%;
-}
-
-.hidden {
-  display: none;
 }
 
 :deep(.el-form-item__label) {
