@@ -4,9 +4,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -47,10 +49,19 @@ public class VideoServiceImpl implements VideoService {
     private final UserLikeMapper userLikeMapper;
     private final UserCollectMapper userCollectMapper;
     private final InteractionService interactionService;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     // 使用统一的文件存储服务（支持腾讯云 COS 等对象存储）
     @Autowired(required = false)
     private FileStorageService fileStorageService;
+    
+    // Redis缓存Key前缀
+    private static final String VIDEO_DETAIL_CACHE_PREFIX = "video:detail:";
+    private static final String VIDEO_LIST_CACHE_PREFIX = "video:list:";
+    
+    // 缓存过期时间
+    private static final long VIDEO_DETAIL_CACHE_TTL_MINUTES = 60; // 视频详情缓存1小时
+    private static final long VIDEO_LIST_CACHE_TTL_MINUTES = 10;   // 视频列表缓存10分钟
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -106,6 +117,11 @@ public class VideoServiceImpl implements VideoService {
 
         // 保存到数据库
         videoMapper.insert(video);
+        
+        // 删除视频列表缓存（新视频发布后）
+        invalidateVideoListCache();
+        
+        log.info("Video uploaded successfully, videoId={}, cleared video list cache", video.getId());
 
         // 构建响应
         return VideoUploadVO.builder()
@@ -118,6 +134,38 @@ public class VideoServiceImpl implements VideoService {
 
     @Override
     public PageVO<VideoVO> getVideoList(Integer pageNum, Integer pageSize, Long userId) {
+        // 构建缓存Key
+        String cacheKey = VIDEO_LIST_CACHE_PREFIX + "page:" + pageNum + ":size:" + pageSize;
+        
+        // 1. 尝试从Redis缓存读取
+        try {
+            @SuppressWarnings("unchecked")
+            PageVO<VideoVO> cachedResult = (PageVO<VideoVO>) redisTemplate.opsForValue().get(cacheKey);
+            
+            if (cachedResult != null) {
+                log.debug("Video list cache hit: {}", cacheKey);
+                
+                // 如果用户已登录，需要更新点赞和收藏状态
+                if (userId != null) {
+                    Set<Long> likedVideoIds = getUserLikedVideoIds(userId);
+                    Set<Long> collectedVideoIds = getUserCollectedVideoIds(userId);
+                    
+                    // 更新每个视频的点赞和收藏状态
+                    cachedResult.getRecords().forEach(video -> {
+                        video.setIsLiked(likedVideoIds.contains(video.getId()));
+                        video.setIsCollected(collectedVideoIds.contains(video.getId()));
+                    });
+                }
+                
+                return cachedResult;
+            }
+        } catch (Exception e) {
+            log.warn("Failed to read video list from cache: {}", e.getMessage());
+        }
+        
+        // 2. 缓存未命中，从数据库查询
+        log.debug("Video list cache miss: {}, querying database", cacheKey);
+        
         // 创建分页对象
         Page<Video> page = new Page<>(pageNum, pageSize);
 
@@ -146,17 +194,86 @@ public class VideoServiceImpl implements VideoService {
                 .collect(Collectors.toList());
 
         // 构建分页响应
-        return PageVO.<VideoVO>builder()
+        PageVO<VideoVO> result = PageVO.<VideoVO>builder()
                 .pageNum(pageNum)
                 .pageSize(pageSize)
                 .total(videoPage.getTotal())
                 .pages((int) videoPage.getPages())
                 .records(videoVOList)
                 .build();
+        
+        // 3. 将结果写入Redis缓存（不包含用户特定的点赞/收藏状态）
+        try {
+            // 创建一个副本用于缓存，将所有视频的isLiked和isCollected设置为false
+            PageVO<VideoVO> cacheResult = PageVO.<VideoVO>builder()
+                    .pageNum(result.getPageNum())
+                    .pageSize(result.getPageSize())
+                    .total(result.getTotal())
+                    .pages(result.getPages())
+                    .records(result.getRecords().stream()
+                            .map(video -> {
+                                VideoVO cacheVideo = VideoVO.builder()
+                                        .id(video.getId())
+                                        .title(video.getTitle())
+                                        .description(video.getDescription())
+                                        .authorName(video.getAuthorName())
+                                        .coverUrl(video.getCoverUrl())
+                                        .videoUrl(video.getVideoUrl())
+                                        .duration(video.getDuration())
+                                        .playCount(video.getPlayCount())
+                                        .likeCount(video.getLikeCount())
+                                        .commentCount(video.getCommentCount())
+                                        .collectCount(video.getCollectCount())
+                                        .isLiked(false)  // 缓存中不存储用户特定状态
+                                        .isCollected(false)  // 缓存中不存储用户特定状态
+                                        .createTime(video.getCreateTime())
+                                        .build();
+                                return cacheVideo;
+                            })
+                            .collect(Collectors.toList()))
+                    .build();
+            
+            redisTemplate.opsForValue().set(cacheKey, cacheResult, VIDEO_LIST_CACHE_TTL_MINUTES, TimeUnit.MINUTES);
+            log.debug("Video list cached: {}", cacheKey);
+        } catch (Exception e) {
+            log.warn("Failed to write video list to cache: {}", e.getMessage());
+        }
+        
+        return result;
     }
 
     @Override
     public VideoDetailVO getVideoDetail(Long videoId, Long userId) {
+        // 构建缓存Key
+        String cacheKey = VIDEO_DETAIL_CACHE_PREFIX + videoId;
+        
+        // 1. 尝试从Redis缓存读取
+        VideoDetailVO cachedDetail = null;
+        try {
+            cachedDetail = (VideoDetailVO) redisTemplate.opsForValue().get(cacheKey);
+            
+            if (cachedDetail != null) {
+                log.debug("Video detail cache hit: videoId={}", videoId);
+                
+                // 如果用户已登录，需要查询用户的点赞和收藏状态
+                if (userId != null) {
+                    VideoInteractionVO interactionStatus = interactionService.getInteractionStatus(userId, videoId);
+                    cachedDetail.setIsLiked(interactionStatus.getIsLiked());
+                    cachedDetail.setIsCollected(interactionStatus.getIsCollected());
+                } else {
+                    cachedDetail.setIsLiked(false);
+                    cachedDetail.setIsCollected(false);
+                }
+                
+                return cachedDetail;
+            }
+        } catch (Exception e) {
+            log.warn("Failed to read video detail from cache: videoId={}, error={}", videoId, e.getMessage());
+        }
+        
+        // 2. 缓存未命中，从数据库查询
+        log.debug("Video detail cache miss: videoId={}, querying database", videoId);
+        
         // 查询视频
         Video video = videoMapper.selectById(videoId);
         if (video == null) {
@@ -170,10 +287,13 @@ public class VideoServiceImpl implements VideoService {
         }
 
         // 调用InteractionService获取用户的点赞和收藏状态
-        VideoInteractionVO interactionStatus = interactionService.getInteractionStatus(userId, videoId);
+        VideoInteractionVO interactionStatus = null;
+        if (userId != null) {
+            interactionStatus = interactionService.getInteractionStatus(userId, videoId);
+        }
 
         // 转换为 VO
-        return VideoDetailVO.builder()
+        VideoDetailVO result = VideoDetailVO.builder()
                 .id(video.getId())
                 .title(video.getTitle())
                 .description(video.getDescription())
@@ -192,10 +312,45 @@ public class VideoServiceImpl implements VideoService {
                 .commentCount(video.getCommentCount())
                 .collectCount(video.getCollectCount())
                 .heatScore(video.getHeatScore())
-                .isLiked(interactionStatus.getIsLiked())
-                .isCollected(interactionStatus.getIsCollected())
+                .isLiked(interactionStatus != null ? interactionStatus.getIsLiked() : false)
+                .isCollected(interactionStatus != null ? interactionStatus.getIsCollected() : false)
                 .createTime(video.getCreateTime())
                 .build();
+        
+        // 3. 将结果写入Redis缓存（不包含用户特定的点赞/收藏状态）
+        try {
+            // 创建一个副本用于缓存，将isLiked和isCollected设置为false
+            VideoDetailVO cacheDetail = VideoDetailVO.builder()
+                    .id(result.getId())
+                    .title(result.getTitle())
+                    .description(result.getDescription())
+                    .authorId(result.getAuthorId())
+                    .authorName(result.getAuthorName())
+                    .coverUrl(result.getCoverUrl())
+                    .videoUrl(result.getVideoUrl())
+                    .objectKey(result.getObjectKey())
+                    .duration(result.getDuration())
+                    .fileSize(result.getFileSize())
+                    .format(result.getFormat())
+                    .category(result.getCategory())
+                    .tags(result.getTags())
+                    .playCount(result.getPlayCount())
+                    .likeCount(result.getLikeCount())
+                    .commentCount(result.getCommentCount())
+                    .collectCount(result.getCollectCount())
+                    .heatScore(result.getHeatScore())
+                    .isLiked(false)  // 缓存中不存储用户特定状态
+                    .isCollected(false)  // 缓存中不存储用户特定状态
+                    .createTime(result.getCreateTime())
+                    .build();
+            
+            redisTemplate.opsForValue().set(cacheKey, cacheDetail, VIDEO_DETAIL_CACHE_TTL_MINUTES, TimeUnit.MINUTES);
+            log.debug("Video detail cached: videoId={}", videoId);
+        } catch (Exception e) {
+            log.warn("Failed to write video detail to cache: videoId={}, error={}", videoId, e.getMessage());
+        }
+        
+        return result;
     }
 
     @Override
@@ -209,6 +364,41 @@ public class VideoServiceImpl implements VideoService {
         // 增加播放次数
         video.setPlayCount(video.getPlayCount() + 1);
         videoMapper.updateById(video);
+        
+        // 删除视频详情缓存（播放数已更新）
+        invalidateVideoDetailCache(videoId);
+        
+        log.debug("Video play count incremented and cache invalidated: videoId={}", videoId);
+    }
+    
+    /**
+     * 删除视频详情缓存
+     */
+    private void invalidateVideoDetailCache(Long videoId) {
+        try {
+            String cacheKey = VIDEO_DETAIL_CACHE_PREFIX + videoId;
+            redisTemplate.delete(cacheKey);
+            log.debug("Video detail cache invalidated: videoId={}", videoId);
+        } catch (Exception e) {
+            log.warn("Failed to invalidate video detail cache: videoId={}, error={}", videoId, e.getMessage());
+        }
+    }
+    
+    /**
+     * 删除视频列表缓存
+     */
+    private void invalidateVideoListCache() {
+        try {
+            // 使用模式匹配删除所有视频列表缓存
+            String pattern = VIDEO_LIST_CACHE_PREFIX + "*";
+            var keys = redisTemplate.keys(pattern);
+            if (keys != null && !keys.isEmpty()) {
+                redisTemplate.delete(keys);
+                log.debug("Video list cache invalidated: {} keys deleted", keys.size());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to invalidate video list cache: {}", e.getMessage());
+        }
     }
 
     /**

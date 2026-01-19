@@ -36,4 +36,22 @@ public interface VideoMapper extends BaseMapper<Video> {
      */
     @Update("UPDATE video SET collect_count = GREATEST(0, collect_count - 1) WHERE id = #{videoId} AND is_deleted = 0")
     int decrementCollectCount(@Param("videoId") Long videoId);
+    
+    /**
+     * 原子操作：增加评论计数
+     */
+    @Update("UPDATE video SET comment_count = comment_count + 1 WHERE id = #{videoId} AND is_deleted = 0")
+    int incrementCommentCount(@Param("videoId") Long videoId);
+    
+    /**
+     * 原子操作：减少评论计数
+     */
+    @Update("UPDATE video SET comment_count = GREATEST(0, comment_count - 1) WHERE id = #{videoId} AND is_deleted = 0")
+    int decrementCommentCount(@Param("videoId") Long videoId);
+    
+    /**
+     * 原子操作：批量减少评论计数
+     */
+    @Update("UPDATE video SET comment_count = GREATEST(0, comment_count - #{count}) WHERE id = #{videoId} AND is_deleted = 0")
+    int decrementCommentCountByAmount(@Param("videoId") Long videoId, @Param("count") int count);
 }

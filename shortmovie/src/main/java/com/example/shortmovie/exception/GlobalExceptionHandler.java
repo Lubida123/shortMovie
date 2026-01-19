@@ -64,6 +64,36 @@ public class GlobalExceptionHandler {
     }
     
     /**
+     * 处理敏感词异常
+     */
+    @ExceptionHandler(SensitiveWordException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public R<Void> handleSensitiveWordException(SensitiveWordException e) {
+        log.warn("Sensitive word exception: {}", e.getMessage());
+        return R.error(e.getCode(), e.getMessage());
+    }
+    
+    /**
+     * 处理重复评论异常
+     */
+    @ExceptionHandler(DuplicateCommentException.class)
+    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+    public R<Void> handleDuplicateCommentException(DuplicateCommentException e) {
+        log.warn("Duplicate comment exception: {}", e.getMessage());
+        return R.error(e.getCode(), e.getMessage());
+    }
+    
+    /**
+     * 处理限流异常
+     */
+    @ExceptionHandler(RateLimitException.class)
+    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+    public R<Void> handleRateLimitException(RateLimitException e) {
+        log.warn("Rate limit exception: {}", e.getMessage());
+        return R.error(e.getCode(), e.getMessage());
+    }
+    
+    /**
      * 处理业务异常
      */
     @ExceptionHandler(BusinessException.class)

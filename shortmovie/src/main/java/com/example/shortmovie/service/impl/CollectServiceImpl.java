@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,9 +38,13 @@ public class CollectServiceImpl implements CollectService {
     private final UserCollectMapper userCollectMapper;
     private final VideoMapper videoMapper;
     private final KafkaMessageProducer kafkaMessageProducer;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @Autowired(required = false)
     private FileStorageService fileStorageService;
+    
+    // Redis缓存Key前缀
+    private static final String VIDEO_DETAIL_CACHE_PREFIX = "video:detail:";
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -114,6 +119,9 @@ public class CollectServiceImpl implements CollectService {
             log.warn("发送收藏行为记录到Kafka失败: userId={}, videoId={}, error={}", userId, videoId, e.getMessage());
             // Kafka失败不影响用户操作
         }
+        
+        // 删除视频详情缓存（收藏数已更新）
+        invalidateVideoDetailCache(videoId);
 
         // 构建响应
         CollectStatusVO response = new CollectStatusVO();
@@ -121,6 +129,19 @@ public class CollectServiceImpl implements CollectService {
         response.setCollectCount(video.getCollectCount());
 
         return response;
+    }
+    
+    /**
+     * 删除视频详情缓存
+     */
+    private void invalidateVideoDetailCache(Long videoId) {
+        try {
+            String cacheKey = VIDEO_DETAIL_CACHE_PREFIX + videoId;
+            redisTemplate.delete(cacheKey);
+            log.debug("Video detail cache invalidated after collect action: videoId={}", videoId);
+        } catch (Exception e) {
+            log.warn("Failed to invalidate video detail cache: videoId={}, error={}", videoId, e.getMessage());
+        }
     }
 
     @Override
