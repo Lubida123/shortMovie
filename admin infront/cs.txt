@@ -254,13 +254,12 @@
                   <el-option label="按播放量" value="views" />
                   <el-option label="按点赞数" value="likes" />
                   <el-option label="按评论数" value="comments" />
-                  <el-option label="按互动率" value="interactionRate" />
                 </el-select>
               </div>
             </div>
             <div class="table-container">
               <el-table
-                :data="sortedHotVideos"
+                :data="hotVideos"
                 style="width: 100%"
                 :row-class-name="tableRowClassName"
                 @row-click="handleVideoClick"
@@ -302,15 +301,6 @@
                     <span class="interaction-rate">{{ (scope.row.interactionRate * 100).toFixed(1) }}%</span>
                   </template>
                 </el-table-column>
-                
-                <el-table-column label="趋势" width="80" align="center">
-                  <template #default="scope">
-                    <div class="video-trend" :class="scope.row.trend >= 0 ? 'up' : 'down'">
-                      <el-icon :size="12"><TrendingUp v-if="scope.row.trend >= 0" /><TrendingDown v-else /></el-icon>
-                      <span>{{ Math.abs(scope.row.trend) }}%</span>
-                    </div>
-                  </template>
-                </el-table-column>
               </el-table>
             </div>
           </div>
@@ -325,14 +315,13 @@
                 <el-select v-model="hotCreatorSort" size="small" style="width: 120px;" @change="handleHotCreatorSortChange">
                   <el-option label="按粉丝数" value="followers" />
                   <el-option label="按作品数" value="videos" />
-                  <el-option label="按总获赞" value="totalLikes" />
-                  <el-option label="按互动指数" value="interactionScore" />
+                  <el-option label="按互动量" value="interaction" />
                 </el-select>
               </div>
             </div>
             <div class="table-container">
               <el-table
-                :data="sortedHotCreators"
+                :data="hotCreators"
                 style="width: 100%"
                 :row-class-name="tableRowClassName"
                 @row-click="handleCreatorClick"
@@ -372,14 +361,6 @@
                 <el-table-column label="总获赞" width="100" align="center">
                   <template #default="scope">
                     <span class="total-likes">{{ formatNumber(scope.row.totalLikes) }}</span>
-                  </template>
-                </el-table-column>
-                
-                <el-table-column label="活跃度" width="80" align="center">
-                  <template #default="scope">
-                    <div class="creator-activity" :class="getActivityClass(scope.row.activity)">
-                      {{ getActivityText(scope.row.activity) }}
-                    </div>
                   </template>
                 </el-table-column>
               </el-table>
@@ -512,310 +493,24 @@ const coreMetrics = ref({
   shareTrend: 15.2
 })
 
-// 原始表格数据（保持原始顺序）
-const rawHotVideos = ref([
-  { 
-    id: 1, 
-    cover: 'https://via.placeholder.com/60x40?text=Video1', 
-    title: '生活小技巧分享', 
-    author: '张三', 
-    views: 154321, 
-    likes: 12345, 
-    comments: 2345, 
-    interactionRate: 0.095,
-    trend: 12.5,
-    publishDate: '2024-01-15',
-    duration: '3:45'
-  },
-  { 
-    id: 2, 
-    cover: 'https://via.placeholder.com/60x40?text=Video2', 
-    title: '搞笑短视频合集', 
-    author: '李四', 
-    views: 143210, 
-    likes: 13456, 
-    comments: 3456, 
-    interactionRate: 0.118,
-    trend: 8.3,
-    publishDate: '2024-01-14',
-    duration: '5:20'
-  },
-  { 
-    id: 3, 
-    cover: 'https://via.placeholder.com/60x40?text=Video3', 
-    title: '编程入门教程', 
-    author: '王五', 
-    views: 132109, 
-    likes: 14567, 
-    comments: 4567, 
-    interactionRate: 0.145,
-    trend: 15.2,
-    publishDate: '2024-01-13',
-    duration: '15:30'
-  },
-  { 
-    id: 4, 
-    cover: 'https://via.placeholder.com/60x40?text=Video4', 
-    title: '游戏精彩集锦', 
-    author: '赵六', 
-    views: 121098, 
-    likes: 15678, 
-    comments: 5678, 
-    interactionRate: 0.176,
-    trend: 5.7,
-    publishDate: '2024-01-12',
-    duration: '8:15'
-  },
-  { 
-    id: 5, 
-    cover: 'https://via.placeholder.com/60x40?text=Video5', 
-    title: '音乐现场录制', 
-    author: '钱七', 
-    views: 110987, 
-    likes: 16789, 
-    comments: 6789, 
-    interactionRate: 0.213,
-    trend: 22.1,
-    publishDate: '2024-01-11',
-    duration: '4:50'
-  },
-  { 
-    id: 6, 
-    cover: 'https://via.placeholder.com/60x40?text=Video6', 
-    title: '美食制作教程', 
-    author: '孙八', 
-    views: 109876, 
-    likes: 17890, 
-    comments: 7890, 
-    interactionRate: 0.198,
-    trend: 7.4,
-    publishDate: '2024-01-10',
-    duration: '12:30'
-  },
-  { 
-    id: 7, 
-    cover: 'https://via.placeholder.com/60x40?text=Video7', 
-    title: '旅行vlog分享', 
-    author: '周九', 
-    views: 98765, 
-    likes: 18901, 
-    comments: 8901, 
-    interactionRate: 0.245,
-    trend: 18.9,
-    publishDate: '2024-01-09',
-    duration: '7:45'
-  },
-  { 
-    id: 8, 
-    cover: 'https://via.placeholder.com/60x40?text=Video8', 
-    title: '健身教学视频', 
-    author: '吴十', 
-    views: 87654, 
-    likes: 19012, 
-    comments: 9012, 
-    interactionRate: 0.167,
-    trend: 3.2,
-    publishDate: '2024-01-08',
-    duration: '10:20'
-  },
-  { 
-    id: 9, 
-    cover: 'https://via.placeholder.com/60x40?text=Video9', 
-    title: '科技产品评测', 
-    author: '郑十一', 
-    views: 76543, 
-    likes: 20123, 
-    comments: 10123, 
-    interactionRate: 0.189,
-    trend: 14.5,
-    publishDate: '2024-01-07',
-    duration: '18:15'
-  },
-  { 
-    id: 10, 
-    cover: 'https://via.placeholder.com/60x40?text=Video10', 
-    title: '宠物日常分享', 
-    author: '王十二', 
-    views: 65432, 
-    likes: 21234, 
-    comments: 11234, 
-    interactionRate: 0.256,
-    trend: 25.3,
-    publishDate: '2024-01-06',
-    duration: '2:30'
-  }
+// 表格数据
+const hotVideos = ref([
+  { id: 1, cover: 'https://via.placeholder.com/60x40?text=Video1', title: '生活小技巧分享', author: '张三', views: 154321, likes: 12345, comments: 2345, interactionRate: 0.095 },
+  { id: 2, cover: 'https://via.placeholder.com/60x40?text=Video2', title: '搞笑短视频合集', author: '李四', views: 143210, likes: 13456, comments: 3456, interactionRate: 0.118 },
+  { id: 3, cover: 'https://via.placeholder.com/60x40?text=Video3', title: '编程入门教程', author: '王五', views: 132109, likes: 14567, comments: 4567, interactionRate: 0.145 },
+  { id: 4, cover: 'https://via.placeholder.com/60x40?text=Video4', title: '游戏精彩集锦', author: '赵六', views: 121098, likes: 15678, comments: 5678, interactionRate: 0.176 },
+  { id: 5, cover: 'https://via.placeholder.com/60x40?text=Video5', title: '音乐现场录制', author: '钱七', views: 110987, likes: 16789, comments: 6789, interactionRate: 0.213 }
 ])
 
-const rawHotCreators = ref([
-  { 
-    id: 1, 
-    avatar: 'https://via.placeholder.com/40?text=ZS', 
-    name: '张三', 
-    category: '生活', 
-    followers: 154321, 
-    videos: 56, 
-    totalLikes: 234567,
-    activity: 'high',
-    fansGrowth: 15.2,
-    lastActive: '今天'
-  },
-  { 
-    id: 2, 
-    avatar: 'https://via.placeholder.com/40?text=LS', 
-    name: '李四', 
-    category: '娱乐', 
-    followers: 143210, 
-    videos: 43, 
-    totalLikes: 198765,
-    activity: 'medium',
-    fansGrowth: 8.3,
-    lastActive: '今天'
-  },
-  { 
-    id: 3, 
-    avatar: 'https://via.placeholder.com/40?text=WW', 
-    name: '王五', 
-    category: '知识', 
-    followers: 132109, 
-    videos: 32, 
-    totalLikes: 176543,
-    activity: 'high',
-    fansGrowth: 12.5,
-    lastActive: '昨天'
-  },
-  { 
-    id: 4, 
-    avatar: 'https://via.placeholder.com/40?text=ZL', 
-    name: '赵六', 
-    category: '游戏', 
-    followers: 121098, 
-    videos: 67, 
-    totalLikes: 154321,
-    activity: 'low',
-    fansGrowth: 5.7,
-    lastActive: '2天前'
-  },
-  { 
-    id: 5, 
-    avatar: 'https://via.placeholder.com/40?text=QQ', 
-    name: '钱七', 
-    category: '音乐', 
-    followers: 110987, 
-    videos: 45, 
-    totalLikes: 143210,
-    activity: 'medium',
-    fansGrowth: 9.1,
-    lastActive: '今天'
-  },
-  { 
-    id: 6, 
-    avatar: 'https://via.placeholder.com/40?text=SB', 
-    name: '孙八', 
-    category: '美食', 
-    followers: 109876, 
-    videos: 78, 
-    totalLikes: 132198,
-    activity: 'high',
-    fansGrowth: 18.4,
-    lastActive: '今天'
-  },
-  { 
-    id: 7, 
-    avatar: 'https://via.placeholder.com/40?text=ZJ', 
-    name: '周九', 
-    category: '旅行', 
-    followers: 98765, 
-    videos: 34, 
-    totalLikes: 121087,
-    activity: 'medium',
-    fansGrowth: 6.8,
-    lastActive: '昨天'
-  },
-  { 
-    id: 8, 
-    avatar: 'https://via.placeholder.com/40?text=WS', 
-    name: '吴十', 
-    category: '健身', 
-    followers: 87654, 
-    videos: 89, 
-    totalLikes: 109876,
-    activity: 'high',
-    fansGrowth: 22.1,
-    lastActive: '今天'
-  },
-  { 
-    id: 9, 
-    avatar: 'https://via.placeholder.com/40?text=ZSSY', 
-    name: '郑十一', 
-    category: '科技', 
-    followers: 76543, 
-    videos: 23, 
-    totalLikes: 98765,
-    activity: 'low',
-    fansGrowth: 4.3,
-    lastActive: '3天前'
-  },
-  { 
-    id: 10, 
-    avatar: 'https://via.placeholder.com/40?text=WSE', 
-    name: '王十二', 
-    category: '宠物', 
-    followers: 65432, 
-    videos: 91, 
-    totalLikes: 87654,
-    activity: 'high',
-    fansGrowth: 27.6,
-    lastActive: '今天'
-  }
+const hotCreators = ref([
+  { id: 1, avatar: 'https://via.placeholder.com/40?text=ZS', name: '张三', category: '生活', followers: 154321, videos: 56, totalLikes: 234567 },
+  { id: 2, avatar: 'https://via.placeholder.com/40?text=LS', name: '李四', category: '娱乐', followers: 143210, videos: 43, totalLikes: 198765 },
+  { id: 3, avatar: 'https://via.placeholder.com/40?text=WW', name: '王五', category: '知识', followers: 132109, videos: 32, totalLikes: 176543 },
+  { id: 4, avatar: 'https://via.placeholder.com/40?text=ZL', name: '赵六', category: '游戏', followers: 121098, videos: 67, totalLikes: 154321 },
+  { id: 5, avatar: 'https://via.placeholder.com/40?text=QQ', name: '钱七', category: '音乐', followers: 110987, videos: 45, totalLikes: 143210 }
 ])
 
-// ==================== 计算属性：排序后的表格数据 ====================
-
-// 排序后的热门视频
-const sortedHotVideos = computed(() => {
-  const videos = [...rawHotVideos.value]
-  
-  // 根据排序条件排序
-  switch (hotVideoSort.value) {
-    case 'views':
-      return videos.sort((a, b) => b.views - a.views)
-    case 'likes':
-      return videos.sort((a, b) => b.likes - a.likes)
-    case 'comments':
-      return videos.sort((a, b) => b.comments - a.comments)
-    case 'interactionRate':
-      return videos.sort((a, b) => b.interactionRate - a.interactionRate)
-    default:
-      return videos.sort((a, b) => b.views - a.views)
-  }
-})
-
-// 排序后的热门创作者
-const sortedHotCreators = computed(() => {
-  const creators = [...rawHotCreators.value]
-  
-  // 根据排序条件排序
-  switch (hotCreatorSort.value) {
-    case 'followers':
-      return creators.sort((a, b) => b.followers - a.followers)
-    case 'videos':
-      return creators.sort((a, b) => b.videos - a.videos)
-    case 'totalLikes':
-      return creators.sort((a, b) => b.totalLikes - a.totalLikes)
-    case 'interactionScore':
-      // 互动指数 = 总获赞 / 作品数（平均每个视频的点赞数）
-      const calculateInteractionScore = (creator) => {
-        return creator.totalLikes / creator.videos
-      }
-      return creators.sort((a, b) => {
-        return calculateInteractionScore(b) - calculateInteractionScore(a)
-      })
-    default:
-      return creators.sort((a, b) => b.followers - a.followers)
-  }
-})
-
-// ==================== 生成不同粒度的时间标签函数 ====================
+// ==================== 新增：生成不同粒度的时间标签函数 ====================
 
 // 生成日趋势标签
 const generateDailyLabels = () => {
@@ -1552,26 +1247,6 @@ const getRankClass = (index) => {
   return ''
 }
 
-// 获取活跃度样式
-const getActivityClass = (activity) => {
-  switch (activity) {
-    case 'high': return 'activity-high'
-    case 'medium': return 'activity-medium'
-    case 'low': return 'activity-low'
-    default: return ''
-  }
-}
-
-// 获取活跃度文本
-const getActivityText = (activity) => {
-  switch (activity) {
-    case 'high': return '高活跃'
-    case 'medium': return '中活跃'
-    case 'low': return '低活跃'
-    default: return '未知'
-  }
-}
-
 // 表格行样式
 const tableRowClassName = ({ rowIndex }) => {
   return rowIndex % 2 === 1 ? 'even-row' : ''
@@ -1850,26 +1525,14 @@ const handleActivePeriodChange = () => {
 
 // 热门视频排序改变
 const handleHotVideoSortChange = () => {
-  // 排序逻辑已通过计算属性实现
-  const sortLabels = {
-    views: '播放量',
-    likes: '点赞数',
-    comments: '评论数',
-    interactionRate: '互动率'
-  }
-  ElMessage.success(`已按${sortLabels[hotVideoSort.value]}排序`)
+  // 这里可以添加排序逻辑
+  console.log('热门视频排序改变为:', hotVideoSort.value)
 }
 
 // 热门创作者排序改变
 const handleHotCreatorSortChange = () => {
-  // 排序逻辑已通过计算属性实现
-  const sortLabels = {
-    followers: '粉丝数',
-    videos: '作品数',
-    totalLikes: '总获赞',
-    interactionScore: '互动指数'
-  }
-  ElMessage.success(`已按${sortLabels[hotCreatorSort.value]}排序`)
+  // 这里可以添加排序逻辑
+  console.log('热门创作者排序改变为:', hotCreatorSort.value)
 }
 
 // 导出数据
@@ -1883,55 +1546,18 @@ const exportData = () => {
       type: 'info'
     }
   ).then(() => {
-    // 导出排序后的数据
-    const exportData = {
-      hotVideos: sortedHotVideos.value,
-      hotCreators: sortedHotCreators.value,
-      coreMetrics: coreMetrics.value,
-      exportTime: new Date().toLocaleString('zh-CN')
-    }
-    
-    // 创建下载链接
-    const dataStr = JSON.stringify(exportData, null, 2)
-    const dataBlob = new Blob([dataStr], { type: 'application/json' })
-    const url = URL.createObjectURL(dataBlob)
-    
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `数据分析_${new Date().getTime()}.json`
-    link.click()
-    
-    URL.revokeObjectURL(url)
     ElMessage.success('数据导出成功！')
   })
 }
 
 // 视频点击
 const handleVideoClick = (row) => {
-  ElMessageBox.confirm(
-    `视频详情：${row.title}<br/>作者：${row.author}<br/>播放量：${formatNumber(row.views)}<br/>发布时间：${row.publishDate}`,
-    '视频详情',
-    {
-      confirmButtonText: '查看详情',
-      cancelButtonText: '关闭',
-      dangerouslyUseHTMLString: true,
-      type: 'info'
-    }
-  )
+  ElMessage.info(`查看视频: ${row.title}`)
 }
 
 // 创作者点击
 const handleCreatorClick = (row) => {
-  ElMessageBox.confirm(
-    `创作者详情：${row.name}<br/>分类：${row.category}<br/>粉丝数：${formatNumber(row.followers)}<br/>作品数：${row.videos}<br/>最后活跃：${row.lastActive}`,
-    '创作者详情',
-    {
-      confirmButtonText: '查看主页',
-      cancelButtonText: '关闭',
-      dangerouslyUseHTMLString: true,
-      type: 'info'
-    }
-  )
+  ElMessage.info(`查看创作者: ${row.name}`)
 }
 
 // 刷新数据
@@ -1963,23 +1589,6 @@ const refreshData = () => {
       totalShares: coreMetrics.value.totalShares + Math.floor(Math.random() * 50),
       shareTrend: (Math.random() * 25 - 5).toFixed(1)
     }
-    
-    // 更新视频数据（模拟变化）
-    rawHotVideos.value = rawHotVideos.value.map(video => ({
-      ...video,
-      views: video.views + Math.floor(Math.random() * 1000),
-      likes: video.likes + Math.floor(Math.random() * 100),
-      comments: video.comments + Math.floor(Math.random() * 50),
-      trend: (Math.random() * 30 - 10).toFixed(1)
-    }))
-    
-    // 更新创作者数据（模拟变化）
-    rawHotCreators.value = rawHotCreators.value.map(creator => ({
-      ...creator,
-      followers: creator.followers + Math.floor(Math.random() * 500),
-      totalLikes: creator.totalLikes + Math.floor(Math.random() * 1000),
-      fansGrowth: (Math.random() * 20 - 5).toFixed(1)
-    }))
     
     // 更新图表数据
     updateCharts()
@@ -2432,55 +2041,6 @@ onUnmounted(() => {
     color: @dy-brand-cyan;
     font-weight: 600;
   }
-  
-  // 视频趋势样式
-  .video-trend {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    font-weight: 500;
-    padding: 2px 6px;
-    border-radius: 4px;
-    
-    &.up {
-      background: rgba(0, 200, 100, 0.1);
-      color: #00C864;
-    }
-    
-    &.down {
-      background: rgba(254, 44, 85, 0.1);
-      color: #FE2C55;
-    }
-  }
-  
-  // 创作者活跃度样式
-  .creator-activity {
-    display: inline-block;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 600;
-    text-align: center;
-    
-    &.activity-high {
-      background: rgba(0, 200, 100, 0.15);
-      color: #00C864;
-      border: 1px solid rgba(0, 200, 100, 0.3);
-    }
-    
-    &.activity-medium {
-      background: rgba(255, 149, 0, 0.15);
-      color: #FF9500;
-      border: 1px solid rgba(255, 149, 0, 0.3);
-    }
-    
-    &.activity-low {
-      background: rgba(254, 44, 85, 0.15);
-      color: #FE2C55;
-      border: 1px solid rgba(254, 44, 85, 0.3);
-    }
-  }
 }
 
 // 刷新区域
@@ -2611,12 +2171,6 @@ onUnmounted(() => {
       flex-direction: column;
       align-items: flex-start;
       gap: 8px;
-    }
-    
-    .video-trend,
-    .creator-activity {
-      font-size: 10px;
-      padding: 1px 4px;
     }
   }
   
