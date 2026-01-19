@@ -1,7 +1,9 @@
 package com.example.shortmovie.exception;
 
-import com.example.shortmovie.utils.R;
-import lombok.extern.slf4j.Slf4j;
+import java.util.stream.Collectors;
+
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
@@ -10,7 +12,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.stream.Collectors;
+import com.example.shortmovie.utils.R;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 全局异常处理器
@@ -103,6 +107,28 @@ public class GlobalExceptionHandler {
     public R<Void> handleIllegalArgumentException(IllegalArgumentException e) {
         log.warn("Illegal argument exception: {}", e.getMessage());
         return R.error(400, e.getMessage());
+    }
+    
+    /**
+     * 处理数据库唯一键冲突异常（并发冲突）
+     * 当同一用户对同一视频重复点赞/收藏时触发
+     */
+    @ExceptionHandler(DuplicateKeyException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public R<Void> handleDuplicateKeyException(DuplicateKeyException e) {
+        log.warn("Duplicate key exception - concurrent conflict detected: {}", e.getMessage());
+        return R.error(409, "操作冲突，请稍后重试");
+    }
+    
+    /**
+     * 处理数据库访问异常
+     * 包括连接失败、SQL语法错误、事务失败等
+     */
+    @ExceptionHandler(DataAccessException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public R<Void> handleDataAccessException(DataAccessException e) {
+        log.error("Database access error - detailed error: {}", e.getMessage(), e);
+        return R.error(500, "数据库访问错误，请稍后重试");
     }
     
     /**

@@ -1,20 +1,34 @@
 package com.example.shortmovie.controller;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.example.shortmovie.dto.PlayRecordDTO;
 import com.example.shortmovie.dto.VideoUploadDTO;
+import com.example.shortmovie.service.CollectService;
+import com.example.shortmovie.service.InteractionService;
+import com.example.shortmovie.service.LikeService;
 import com.example.shortmovie.service.VideoService;
 import com.example.shortmovie.utils.R;
+import com.example.shortmovie.vo.CollectStatusVO;
+import com.example.shortmovie.vo.LikeStatusVO;
 import com.example.shortmovie.vo.PageVO;
 import com.example.shortmovie.vo.VideoDetailVO;
+import com.example.shortmovie.vo.VideoInteractionVO;
 import com.example.shortmovie.vo.VideoUploadVO;
 import com.example.shortmovie.vo.VideoVO;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 视频管理控制器
@@ -26,6 +40,9 @@ import org.springframework.web.multipart.MultipartFile;
 public class VideoController {
     
     private final VideoService videoService;
+    private final LikeService likeService;
+    private final CollectService collectService;
+    private final InteractionService interactionService;
     
     @Operation(summary = "上传视频", description = "上传视频文件并创建视频记录")
     @PostMapping(value = "/upload", consumes = "multipart/form-data")
@@ -51,7 +68,7 @@ public class VideoController {
             Authentication authentication
     ) {
         // 从认证信息中获取用户ID（如果未认证，使用测试用户ID 1）
-        Long userId = 1L;  // 默认测试用户
+        Long userId = 2302L;  // 默认测试用户
         if (authentication != null && authentication.isAuthenticated()) {
             try {
                 userId = Long.parseLong(authentication.getName());
@@ -134,5 +151,57 @@ public class VideoController {
         videoService.incrementPlayCount(videoId);
         
         return R.ok(null);
+    }
+    
+    @Operation(summary = "点赞/取消点赞", description = "切换视频的点赞状态，需要用户登录")
+    @PostMapping("/{videoId}/like")
+    public R<LikeStatusVO> toggleLike(
+            @Parameter(description = "视频ID", required = true)
+            @PathVariable Long videoId,
+            
+            Authentication authentication
+    ) {
+        // 从认证信息中获取用户ID
+        Long userId = Long.parseLong(authentication.getName());
+        
+        LikeStatusVO result = likeService.toggleLike(userId, videoId);
+        return R.ok(result);
+    }
+    
+    @Operation(summary = "收藏/取消收藏", description = "切换视频的收藏状态，需要用户登录")
+    @PostMapping("/{videoId}/collect")
+    public R<CollectStatusVO> toggleCollect(
+            @Parameter(description = "视频ID", required = true)
+            @PathVariable Long videoId,
+            
+            Authentication authentication
+    ) {
+        // 从认证信息中获取用户ID
+        Long userId = Long.parseLong(authentication.getName());
+        
+        CollectStatusVO result = collectService.toggleCollect(userId, videoId);
+        return R.ok(result);
+    }
+    
+    @Operation(summary = "查询交互状态", description = "查询用户对视频的点赞和收藏状态，支持未登录用户访问")
+    @GetMapping("/{videoId}/interaction")
+    public R<VideoInteractionVO> getInteractionStatus(
+            @Parameter(description = "视频ID", required = true)
+            @PathVariable Long videoId,
+            
+            Authentication authentication
+    ) {
+        // 获取当前用户ID（可能为null，表示未登录）
+        Long userId = null;
+        if (authentication != null && authentication.isAuthenticated()) {
+            try {
+                userId = Long.parseLong(authentication.getName());
+            } catch (Exception e) {
+                // 未登录或认证信息无效，userId保持为null
+            }
+        }
+        
+        VideoInteractionVO result = interactionService.getInteractionStatus(userId, videoId);
+        return R.ok(result);
     }
 }

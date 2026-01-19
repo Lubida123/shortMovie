@@ -1,12 +1,18 @@
 package com.example.shortmovie.controller;
 
+import com.example.shortmovie.dto.ChangePasswordDTO;
 import com.example.shortmovie.dto.UserLoginDTO;
 import com.example.shortmovie.dto.UserRegisterDTO;
 import com.example.shortmovie.dto.UserUpdateDTO;
+import com.example.shortmovie.service.CollectService;
+import com.example.shortmovie.service.LikeService;
 import com.example.shortmovie.service.UserService;
+import com.example.shortmovie.service.UserVideoService;
 import com.example.shortmovie.utils.R;
 import com.example.shortmovie.vo.LoginVO;
+import com.example.shortmovie.vo.PageVO;
 import com.example.shortmovie.vo.UserProfileVO;
+import com.example.shortmovie.vo.VideoVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,6 +20,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
@@ -22,6 +29,7 @@ import org.springframework.web.bind.annotation.*;
 /**
  * 用户控制器
  */
+@Slf4j
 @Tag(name = "用户接口", description = "用户注册、登录、信息管理相关接口")
 @RestController
 @RequestMapping("/api/user")
@@ -30,6 +38,9 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
     
     private final UserService userService;
+    private final UserVideoService userVideoService;
+    private final LikeService likeService;
+    private final CollectService collectService;
     
     /**
      * 用户注册
@@ -95,6 +106,22 @@ public class UserController {
     }
     
     /**
+     * 用户退出登录
+     */
+    @Operation(summary = "退出登录", description = "用户退出登录接口（前端需清除本地存储的 token）")
+    @PostMapping("/logout")
+    public R<Void> logout() {
+        // 由于使用的是无状态的 JWT，服务端不需要做任何处理
+        // 前端只需要删除本地存储的 token 即可
+        // 如果需要实现 token 黑名单功能，可以在这里将 token 加入 Redis 黑名单
+        
+        Long userId = getCurrentUserId();
+        log.info("User logged out: userId={}", userId);
+        
+        return R.ok();
+    }
+    
+    /**
      * 发送邮箱验证码
      */
     @Operation(summary = "发送邮箱验证码", description = "向指定邮箱发送验证码，验证码有效期5分钟")
@@ -147,6 +174,94 @@ public class UserController {
         Long userId = getCurrentUserId();
         userService.updateProfile(userId, dto);
         return R.ok();
+    }
+    
+    /**
+     * 修改密码
+     */
+    @Operation(summary = "修改密码", description = "修改当前登录用户的密码，需要提供旧密码和新密码")
+    @PutMapping("/password")
+    public R<Void> changePassword(
+            @Parameter(description = "旧密码", required = true)
+            @NotBlank(message = "旧密码不能为空")
+            @RequestParam String oldPassword,
+            
+            @Parameter(description = "新密码", required = true)
+            @NotBlank(message = "新密码不能为空")
+            @RequestParam String newPassword) {
+        
+        // 构建 DTO 对象
+        ChangePasswordDTO dto = new ChangePasswordDTO();
+        dto.setOldPassword(oldPassword);
+        dto.setNewPassword(newPassword);
+        
+        Long userId = getCurrentUserId();
+        userService.changePassword(userId, dto);
+        
+        return R.ok();
+    }
+    
+    /**
+     * 查询我的视频
+     */
+    @Operation(summary = "查询我的视频", description = "查询当前登录用户发布的所有视频，支持按审核状态筛选和分页")
+    @GetMapping("/videos")
+    public R<PageVO<VideoVO>> getUserVideos(
+            @Parameter(description = "审核状态：0-待审核，1-通过，2-驳回")
+            @RequestParam(required = false) Integer auditStatus,
+            
+            @Parameter(description = "页码，默认为1")
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            
+            @Parameter(description = "每页大小，默认为10")
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        
+        Long userId = getCurrentUserId();
+        PageVO<VideoVO> result;
+        
+        if (auditStatus != null) {
+            result = userVideoService.getUserVideoListByStatus(userId, auditStatus, pageNum, pageSize);
+        } else {
+            result = userVideoService.getUserVideoList(userId, pageNum, pageSize);
+        }
+        
+        return R.ok(result);
+    }
+    
+    /**
+     * 查询我的喜欢列表
+     */
+    @Operation(summary = "查询我的喜欢列表", description = "查询当前登录用户点赞的所有视频，按点赞时间倒序排列")
+    @GetMapping("/likes")
+    public R<PageVO<VideoVO>> getUserLikes(
+            @Parameter(description = "页码，默认为1")
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            
+            @Parameter(description = "每页大小，默认为10")
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        
+        Long userId = getCurrentUserId();
+        PageVO<VideoVO> result = likeService.getUserLikeList(userId, pageNum, pageSize);
+        
+        return R.ok(result);
+    }
+    
+    /**
+     * 查询我的收藏列表
+     */
+    @Operation(summary = "查询我的收藏列表", description = "查询当前登录用户收藏的所有视频，按收藏时间倒序排列")
+    @GetMapping("/collects")
+    public R<PageVO<VideoVO>> getUserCollects(
+            @Parameter(description = "页码，默认为1")
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            
+            @Parameter(description = "每页大小，默认为10")
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        
+        Long userId = getCurrentUserId();
+        PageVO<VideoVO> result = collectService.getUserCollectList(userId, pageNum, pageSize);
+        
+        return R.ok(result);
     }
     
     /**

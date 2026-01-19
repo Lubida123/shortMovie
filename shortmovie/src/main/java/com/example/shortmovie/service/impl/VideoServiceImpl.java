@@ -1,34 +1,38 @@
 package com.example.shortmovie.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.example.shortmovie.dto.VideoUploadDTO;
-import com.example.shortmovie.entity.BehaviorRecord;
-import com.example.shortmovie.entity.User;
-import com.example.shortmovie.entity.Video;
-import com.example.shortmovie.exception.BusinessException;
-import com.example.shortmovie.exception.ResourceNotFoundException;
-import com.example.shortmovie.mapper.BehaviorRecordMapper;
-import com.example.shortmovie.mapper.UserMapper;
-import com.example.shortmovie.mapper.VideoMapper;
-import com.example.shortmovie.service.FileStorageService;
-import com.example.shortmovie.service.VideoService;
-import com.example.shortmovie.vo.PageVO;
-import com.example.shortmovie.vo.VideoDetailVO;
-import com.example.shortmovie.vo.VideoUploadVO;
-import com.example.shortmovie.vo.VideoVO;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.shortmovie.dto.VideoUploadDTO;
+import com.example.shortmovie.entity.User;
+import com.example.shortmovie.entity.Video;
+import com.example.shortmovie.exception.BusinessException;
+import com.example.shortmovie.exception.ResourceNotFoundException;
+import com.example.shortmovie.mapper.UserCollectMapper;
+import com.example.shortmovie.mapper.UserLikeMapper;
+import com.example.shortmovie.mapper.UserMapper;
+import com.example.shortmovie.mapper.VideoMapper;
+import com.example.shortmovie.service.FileStorageService;
+import com.example.shortmovie.service.InteractionService;
+import com.example.shortmovie.service.VideoService;
+import com.example.shortmovie.vo.PageVO;
+import com.example.shortmovie.vo.VideoDetailVO;
+import com.example.shortmovie.vo.VideoInteractionVO;
+import com.example.shortmovie.vo.VideoUploadVO;
+import com.example.shortmovie.vo.VideoVO;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 视频服务实现
@@ -40,7 +44,9 @@ public class VideoServiceImpl implements VideoService {
 
     private final VideoMapper videoMapper;
     private final UserMapper userMapper;
-    private final BehaviorRecordMapper behaviorRecordMapper;
+    private final UserLikeMapper userLikeMapper;
+    private final UserCollectMapper userCollectMapper;
+    private final InteractionService interactionService;
 
     // 使用统一的文件存储服务（支持腾讯云 COS 等对象存储）
     @Autowired(required = false)
@@ -163,14 +169,8 @@ public class VideoServiceImpl implements VideoService {
             videoUrl = fileStorageService.getFileUrl(video.getObjectKey());
         }
 
-        // 如果用户已登录，查询用户的点赞和收藏状态
-        Boolean isLiked = false;
-        Boolean isCollected = false;
-
-        if (userId != null) {
-            isLiked = checkUserLiked(userId, videoId);
-            isCollected = checkUserCollected(userId, videoId);
-        }
+        // 调用InteractionService获取用户的点赞和收藏状态
+        VideoInteractionVO interactionStatus = interactionService.getInteractionStatus(userId, videoId);
 
         // 转换为 VO
         return VideoDetailVO.builder()
@@ -192,8 +192,8 @@ public class VideoServiceImpl implements VideoService {
                 .commentCount(video.getCommentCount())
                 .collectCount(video.getCollectCount())
                 .heatScore(video.getHeatScore())
-                .isLiked(isLiked)
-                .isCollected(isCollected)
+                .isLiked(interactionStatus.getIsLiked())
+                .isCollected(interactionStatus.getIsCollected())
                 .createTime(video.getCreateTime())
                 .build();
     }
@@ -253,52 +253,16 @@ public class VideoServiceImpl implements VideoService {
      * 获取用户点赞的视频ID集合
      */
     private Set<Long> getUserLikedVideoIds(Long userId) {
-        LambdaQueryWrapper<BehaviorRecord> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(BehaviorRecord::getUserId, userId)
-                .eq(BehaviorRecord::getBehaviorType, "LIKE");
-
-        List<BehaviorRecord> records = behaviorRecordMapper.selectList(queryWrapper);
-        return records.stream()
-                .map(BehaviorRecord::getVideoId)
-                .collect(Collectors.toSet());
+        List<Long> videoIds = userLikeMapper.selectAllVideoIdsByUserId(userId);
+        return videoIds.stream().collect(Collectors.toSet());
     }
 
     /**
      * 获取用户收藏的视频ID集合
      */
     private Set<Long> getUserCollectedVideoIds(Long userId) {
-        LambdaQueryWrapper<BehaviorRecord> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(BehaviorRecord::getUserId, userId)
-                .eq(BehaviorRecord::getBehaviorType, "COLLECT");
-
-        List<BehaviorRecord> records = behaviorRecordMapper.selectList(queryWrapper);
-        return records.stream()
-                .map(BehaviorRecord::getVideoId)
-                .collect(Collectors.toSet());
-    }
-
-    /**
-     * 检查用户是否点赞了视频
-     */
-    private Boolean checkUserLiked(Long userId, Long videoId) {
-        LambdaQueryWrapper<BehaviorRecord> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(BehaviorRecord::getUserId, userId)
-                .eq(BehaviorRecord::getVideoId, videoId)
-                .eq(BehaviorRecord::getBehaviorType, "LIKE");
-
-        return behaviorRecordMapper.selectCount(queryWrapper) > 0;
-    }
-
-    /**
-     * 检查用户是否收藏了视频
-     */
-    private Boolean checkUserCollected(Long userId, Long videoId) {
-        LambdaQueryWrapper<BehaviorRecord> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(BehaviorRecord::getUserId, userId)
-                .eq(BehaviorRecord::getVideoId, videoId)
-                .eq(BehaviorRecord::getBehaviorType, "COLLECT");
-
-        return behaviorRecordMapper.selectCount(queryWrapper) > 0;
+        List<Long> videoIds = userCollectMapper.selectAllVideoIdsByUserId(userId);
+        return videoIds.stream().collect(Collectors.toSet());
     }
 }
 

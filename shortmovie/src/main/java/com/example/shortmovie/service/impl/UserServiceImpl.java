@@ -1,6 +1,7 @@
 package com.example.shortmovie.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.example.shortmovie.dto.ChangePasswordDTO;
 import com.example.shortmovie.dto.UserLoginDTO;
 import com.example.shortmovie.dto.UserRegisterDTO;
 import com.example.shortmovie.dto.UserUpdateDTO;
@@ -227,5 +228,32 @@ public class UserServiceImpl implements UserService {
         userMapper.updateById(user);
         
         log.info("User profile updated successfully: userId={}", userId);
+    }
+    
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void changePassword(Long userId, ChangePasswordDTO dto) {
+        // 1. 查询用户是否存在
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new ValidationException("用户不存在");
+        }
+        
+        // 2. 验证旧密码是否正确
+        if (!passwordEncoder.matches(dto.getOldPassword(), user.getPassword())) {
+            throw new ValidationException("旧密码错误");
+        }
+        
+        // 3. 验证新密码不能与旧密码相同
+        if (dto.getOldPassword().equals(dto.getNewPassword())) {
+            throw new ValidationException("新密码不能与旧密码相同");
+        }
+        
+        // 4. 更新密码
+        user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+        user.setUpdateTime(LocalDateTime.now());
+        userMapper.updateById(user);
+        
+        log.info("User password changed successfully: userId={}", userId);
     }
 }
