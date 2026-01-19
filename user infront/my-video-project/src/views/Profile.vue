@@ -55,6 +55,7 @@ const displayName = computed(
 )
 
 const displayId = computed(() => profile.value?.id || profile.value?.userId || '--')
+const profileId = computed(() => profile.value?.id ?? profile.value?.userId ?? null)
 const followCount = computed(() => profile.value?.followCount ?? 0)
 const likeCount = computed(() => profile.value?.likeCount ?? 0)
 const signature = computed(() => profile.value?.description || profile.value?.signature || '暂无签名')
@@ -94,12 +95,17 @@ const resetUpload = () => {
   uploadForm.tags = ''
 }
 
-const getUploadKey = () => `myUploads_${profile.value?.id || 'guest'}`
+const getUploadKey = () => `myUploads_${profileId.value ?? 'guest'}`
 
 const loadMyUploads = () => {
   try {
     const raw = localStorage.getItem(getUploadKey())
-    myUploads.value = raw ? JSON.parse(raw) : []
+    const parsed = raw ? JSON.parse(raw) : []
+    const currentId = profileId.value
+    myUploads.value =
+      currentId !== null && currentId !== undefined
+        ? parsed.filter((item) => item.authorId === currentId)
+        : parsed
   } catch (error) {
     myUploads.value = []
   }
@@ -243,6 +249,7 @@ const handleUploadVideo = async () => {
         description: uploadForm.description,
         videoUrl: uploaded.videoUrl || videoPreview.value,
         duration: videoDuration.value || 0,
+        authorId: profileId.value ?? null,
         status: '审核中',
         createdAt: new Date().toISOString(),
       })
@@ -279,7 +286,11 @@ const handleUpdatePassword = async () => {
       ElMessage.error(data?.message || '密码修改失败')
     }
   } catch (error) {
-    ElMessage.error('密码修改失败，请稍后重试')
+    if (error?.response?.status === 404) {
+      ElMessage.warning('后端暂未提供修改密码接口')
+    } else {
+      ElMessage.error('密码修改失败，请稍后重试')
+    }
   } finally {
     passwordLoading.value = false
   }

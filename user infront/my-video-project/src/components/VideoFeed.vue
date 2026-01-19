@@ -142,7 +142,11 @@ const hydrateFromCache = () => {
       return false
     }
     if (Date.now() - (cached.ts || 0) > CACHE_TTL) return false
-    videos.value = cached.videos
+    videos.value = cached.videos.map((video) => ({
+      ...video,
+      error: false,
+      retryCount: 0,
+    }))
     pageNum.value = cached.pageNum || 1
     hasMore.value = cached.hasMore ?? true
     currentIndex.value = Math.min(cached.currentIndex || 0, Math.max(cached.videos.length - 1, 0))
@@ -484,13 +488,36 @@ const handleWheel = (e) => {
 
 const getAuthorKey = (video) => video.authorId ?? video.authorName ?? video.author ?? 'unknown'
 
-const openCreatorProfile = (video) => {
-  const authorKey = getAuthorKey(video)
+const openCreatorProfile = async (video) => {
+  if (!video) return
+  let authorId = video.authorId ?? null
+  let authorName = video.authorName || video.author || '匿名'
+  if ((authorId === null || authorId === undefined) && video.id) {
+    try {
+      const { data } = await getVideoDetail(video.id)
+      if (data?.code === 200 && data?.data) {
+        authorId = data.data.authorId ?? authorId
+        authorName = data.data.authorName || authorName
+      }
+    } catch (error) {
+      // ignore fetch errors, fallback to name
+    }
+  }
+  if (authorId !== null && authorId !== undefined) {
+    videos.value.forEach((item) => {
+      if (!item || item.authorId !== null && item.authorId !== undefined) return
+      const itemName = item.authorName || item.author
+      if (itemName && itemName === authorName) {
+        item.authorId = authorId
+      }
+    })
+  }
+  const authorKey = authorId ?? authorName
   const works = videos.value.filter((item) => getAuthorKey(item) === authorKey)
   const payload = {
-    id: video.authorId ?? authorKey,
-    name: video.authorName || video.author || '匿名',
-    account: video.author || `@${video.authorName || 'unknown'}`,
+    id: authorKey,
+    name: authorName,
+    account: video.author || `@${authorName || 'unknown'}`,
     avatar: video.authorAvatar || defaultAvatar,
     works,
   }

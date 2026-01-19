@@ -1,10 +1,13 @@
-<script setup>
+﻿<script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { getVideoList, getVideoDetail } from '../api/video'
 
 const route = useRoute()
 const router = useRouter()
 const defaultAvatar = new URL('../assets/img/avatar.png', import.meta.url).href
+
+const loadingWorks = ref(false)
 
 const creator = ref({
   id: '--',
@@ -28,19 +31,43 @@ const formatDuration = (value) => {
   return `${m}:${s}`
 }
 
+const isNumericId = (value) => /^\d+$/.test(String(value || ''))
+
+const normalizeWork = (item) => {
+  if (!item) return null
+  return {
+    id: item.videoId || item.id,
+    title: item.title || item.videoTitle || '未命名视频',
+    desc: item.description || item.desc || '',
+    duration: item.duration || 0,
+    cover: item.coverUrl || item.cover || '',
+    url: item.videoUrl || item.url || '',
+  }
+}
+
+const extractPageList = (payload) => {
+  const pageData = payload?.data ?? payload
+  const list = pageData?.records ?? pageData?.list ?? []
+  return Array.isArray(list) ? list : []
+}
+
 const loadCreator = () => {
+  const userId = route.params.userId ? String(route.params.userId) : ''
   const raw = sessionStorage.getItem('creator_profile')
   if (raw) {
     try {
       const parsed = JSON.parse(raw)
-      creator.value = {
-        id: parsed.id || route.params.userId || '--',
-        name: parsed.name || '未命名用户',
-        account: parsed.account || '',
-        avatar: parsed.avatar || defaultAvatar,
-        works: Array.isArray(parsed.works) ? parsed.works : [],
+      const cachedId = parsed?.id ? String(parsed.id) : ''
+      if (!userId || cachedId === userId) {
+        creator.value = {
+          id: parsed.id || route.params.userId || '--',
+          name: parsed.name || '未命名用户',
+          account: parsed.account || '',
+          avatar: parsed.avatar || defaultAvatar,
+          works: Array.isArray(parsed.works) ? parsed.works : [],
+        }
+        return
       }
-      return
     } catch (error) {
       // fall through to fallback
     }
@@ -54,6 +81,43 @@ const loadCreator = () => {
   }
 }
 
+const fetchUserWorks = async (userId) => {
+  if (!userId) return
+  loadingWorks.value = true
+  const matchById = isNumericId(userId)
+  try {
+    const { data } = await getVideoList({ pageNum: 1, pageSize: 30 })
+    if (data?.code !== 200) return
+    const list = extractPageList(data)
+    const details = await Promise.all(
+      list.map(async (item) => {
+        const id = item.videoId || item.id
+        if (!id) return null
+        try {
+          const { data: detail } = await getVideoDetail(id)
+          if (detail?.code !== 200) return null
+          return detail?.data || null
+        } catch (error) {
+          return null
+        }
+      })
+    )
+    const filtered = details
+      .filter((detail) => {
+        if (!detail) return false
+        if (matchById) {
+          return String(detail.authorId) === String(userId)
+        }
+        return String(detail.authorName || '') === String(userId)
+      })
+      .map(normalizeWork)
+      .filter(Boolean)
+    creator.value.works = filtered
+  } finally {
+    loadingWorks.value = false
+  }
+}
+
 const handleBack = () => {
   if (window.history.length > 1) {
     router.back()
@@ -62,14 +126,20 @@ const handleBack = () => {
   router.push('/home')
 }
 
-onMounted(() => {
+onMounted(async () => {
   loadCreator()
+  if (works.value.length === 0 && route.params.userId) {
+    await fetchUserWorks(route.params.userId)
+  }
 })
 
 watch(
   () => route.params.userId,
-  () => {
+  async (value) => {
     loadCreator()
+    if (works.value.length === 0 && value) {
+      await fetchUserWorks(value)
+    }
   }
 )
 </script>
@@ -95,15 +165,14 @@ watch(
           <h2>我的作品</h2>
           <span class="section-tip">{{ works.length }} 条</span>
         </div>
-        <div v-if="works.length === 0" class="works-empty">
-          暂无作品
-        </div>
+        <div v-if="loadingWorks" class="works-empty">加载中...</div>
+        <div v-else-if="works.length === 0" class="works-empty">暂无作品</div>
         <div v-else class="works-grid">
           <article v-for="item in works" :key="item.id" class="work-card">
             <div class="work-thumb">
               <video
-                v-if="item.url"
-                :src="item.url"
+                v-if="item.url || item.videoUrl"
+                :src="item.url || item.videoUrl"
                 muted
                 playsinline
                 preload="metadata"
