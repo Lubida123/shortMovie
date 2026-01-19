@@ -113,11 +113,20 @@
           <div class="chart-card">
             <div class="chart-header">
               <h3><el-icon><TrendCharts /></el-icon> 播放量趋势</h3>
-              <el-select v-model="viewChartType" size="small" style="width: 120px;">
-                <el-option label="日趋势" value="daily" />
-                <el-option label="周趋势" value="weekly" />
-                <el-option label="月趋势" value="monthly" />
-              </el-select>
+              <div class="chart-actions">
+                <el-select v-model="viewChartType" size="small" style="width: 120px;" @change="handleViewChartTypeChange">
+                  <el-option label="日趋势" value="daily" />
+                  <el-option label="周趋势" value="weekly" />
+                  <el-option label="月趋势" value="monthly" />
+                </el-select>
+                <el-button 
+                  type="text" 
+                  :icon="FullScreen" 
+                  size="small"
+                  @click="openChartZoom('viewChart')"
+                  title="全屏查看"
+                />
+              </div>
             </div>
             <div class="chart-container">
               <div class="chart" ref="viewChartRef" style="width: 100%; height: 100%;"></div>
@@ -130,10 +139,19 @@
           <div class="chart-card">
             <div class="chart-header">
               <h3><el-icon><PieChart /></el-icon> 用户互动分析</h3>
-              <el-radio-group v-model="interactionType" size="small">
-                <el-radio-button label="distribution">分布</el-radio-button>
-                <el-radio-button label="comparison">对比</el-radio-button>
-              </el-radio-group>
+              <div class="chart-actions">
+                <el-radio-group v-model="interactionType" size="small" @change="handleInteractionTypeChange">
+                  <el-radio-button label="distribution">分布</el-radio-button>
+                  <el-radio-button label="comparison">对比</el-radio-button>
+                </el-radio-group>
+                <el-button 
+                  type="text" 
+                  :icon="FullScreen" 
+                  size="small"
+                  @click="openChartZoom('interactionChart')"
+                  title="全屏查看"
+                />
+              </div>
             </div>
             <div class="chart-container">
               <div class="chart" ref="interactionChartRef" style="width: 100%; height: 100%;"></div>
@@ -146,12 +164,21 @@
           <div class="chart-card">
             <div class="chart-header">
               <h3><el-icon><User /></el-icon> 用户增长趋势</h3>
-              <div class="chart-tabs">
-                <el-radio-group v-model="userGrowthType" size="small">
-                  <el-radio-button label="new">新增用户</el-radio-button>
-                  <el-radio-button label="active">活跃用户</el-radio-button>
-                  <el-radio-button label="total">累计用户</el-radio-button>
-                </el-radio-group>
+              <div class="chart-actions">
+                <div class="chart-tabs">
+                  <el-radio-group v-model="userGrowthType" size="small" @change="handleUserGrowthTypeChange">
+                    <el-radio-button label="new">新增用户</el-radio-button>
+                    <el-radio-button label="active">活跃用户</el-radio-button>
+                    <el-radio-button label="total">累计用户</el-radio-button>
+                  </el-radio-group>
+                </div>
+                <el-button 
+                  type="text" 
+                  :icon="FullScreen" 
+                  size="small"
+                  @click="openChartZoom('userGrowthChart')"
+                  title="全屏查看"
+                />
               </div>
             </div>
             <div class="chart-container">
@@ -165,11 +192,20 @@
           <div class="chart-card">
             <div class="chart-header">
               <h3><el-icon><DataAnalysis /></el-icon> 视频分类分布</h3>
-              <el-select v-model="categorySort" size="small" style="width: 120px;">
-                <el-option label="按数量" value="count" />
-                <el-option label="按播放量" value="views" />
-                <el-option label="按互动量" value="interaction" />
-              </el-select>
+              <div class="chart-actions">
+                <el-select v-model="categorySort" size="small" style="width: 120px;" @change="handleCategorySortChange">
+                  <el-option label="按数量" value="count" />
+                  <el-option label="按播放量" value="views" />
+                  <el-option label="按互动量" value="interaction" />
+                </el-select>
+                <el-button 
+                  type="text" 
+                  :icon="FullScreen" 
+                  size="small"
+                  @click="openChartZoom('categoryChart')"
+                  title="全屏查看"
+                />
+              </div>
             </div>
             <div class="chart-container">
               <div class="chart" ref="categoryChartRef" style="width: 100%; height: 100%;"></div>
@@ -182,11 +218,20 @@
           <div class="chart-card">
             <div class="chart-header">
               <h3><el-icon><Clock /></el-icon> 用户活跃时段分析</h3>
-              <el-radio-group v-model="activePeriod" size="small">
-                <el-radio-button label="weekday">工作日</el-radio-button>
-                <el-radio-button label="weekend">周末</el-radio-button>
-                <el-radio-button label="all">全部</el-radio-button>
-              </el-radio-group>
+              <div class="chart-actions">
+                <el-radio-group v-model="activePeriod" size="small" @change="handleActivePeriodChange">
+                  <el-radio-button label="weekday">工作日</el-radio-button>
+                  <el-radio-button label="weekend">周末</el-radio-button>
+                  <el-radio-button label="all">全部</el-radio-button>
+                </el-radio-group>
+                <el-button 
+                  type="text" 
+                  :icon="FullScreen" 
+                  size="small"
+                  @click="openChartZoom('activePeriodChart')"
+                  title="全屏查看"
+                />
+              </div>
             </div>
             <div class="chart-container">
               <div class="chart" ref="activePeriodChartRef" style="width: 100%; height: 100%;"></div>
@@ -205,7 +250,7 @@
             <div class="table-header">
               <h3><el-icon><Trophy /></el-icon> 热门视频排行榜</h3>
               <div class="table-actions">
-                <el-select v-model="hotVideoSort" size="small" style="width: 120px;">
+                <el-select v-model="hotVideoSort" size="small" style="width: 120px;" @change="handleHotVideoSortChange">
                   <el-option label="按播放量" value="views" />
                   <el-option label="按点赞数" value="likes" />
                   <el-option label="按评论数" value="comments" />
@@ -267,7 +312,7 @@
             <div class="table-header">
               <h3><el-icon><StarFilled /></el-icon> 热门创作者排行榜</h3>
               <div class="table-actions">
-                <el-select v-model="hotCreatorSort" size="small" style="width: 120px;">
+                <el-select v-model="hotCreatorSort" size="small" style="width: 120px;" @change="handleHotCreatorSortChange">
                   <el-option label="按粉丝数" value="followers" />
                   <el-option label="按作品数" value="videos" />
                   <el-option label="按互动量" value="interaction" />
@@ -337,6 +382,43 @@
       </el-button>
       <span class="last-update">最后更新: {{ lastUpdateTime }}</span>
     </div>
+
+    <!-- 图表放大弹窗 -->
+    <el-dialog
+      v-model="chartZoomVisible"
+      :title="zoomChartTitle"
+      width="95%"
+      top="5vh"
+      destroy-on-close
+      @close="handleZoomDialogClose"
+      class="chart-zoom-dialog"
+    >
+      <div class="zoom-chart-container" ref="zoomChartRef"></div>
+      <div class="zoom-chart-actions">
+        <el-button 
+          type="primary" 
+          :icon="Download" 
+          @click="downloadZoomChart"
+          size="small"
+        >
+          下载图片
+        </el-button>
+        <el-button 
+          :icon="FullScreen" 
+          @click="toggleFullScreen"
+          size="small"
+        >
+          {{ isFullScreen ? '退出全屏' : '全屏模式' }}
+        </el-button>
+        <el-button 
+          :icon="Refresh" 
+          @click="refreshZoomChart"
+          size="small"
+        >
+          刷新数据
+        </el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -358,7 +440,8 @@ import {
   StarFilled,
   Refresh,
   Download,
-  ArrowUp,      
+  FullScreen,
+  ArrowUp,
   ArrowDown
 } from '@element-plus/icons-vue'
 
@@ -375,6 +458,14 @@ const activePeriod = ref('all')
 const hotVideoSort = ref('views')
 const hotCreatorSort = ref('followers')
 const lastUpdateTime = ref('')
+
+// 图表放大相关状态
+const chartZoomVisible = ref(false)
+const currentZoomChartType = ref('')
+const zoomChartTitle = ref('')
+const zoomChartRef = ref(null)
+let zoomChartInstance = null
+const isFullScreen = ref(false)
 
 // 图表实例引用
 const viewChartRef = ref(null)
@@ -419,22 +510,194 @@ const hotCreators = ref([
   { id: 5, avatar: 'https://via.placeholder.com/40?text=QQ', name: '钱七', category: '音乐', followers: 110987, videos: 45, totalLikes: 143210 }
 ])
 
-// 生成日期数据
-const generateDateLabels = (days) => {
+// ==================== 新增：生成不同粒度的时间标签函数 ====================
+
+// 生成日趋势标签
+const generateDailyLabels = () => {
   const labels = []
   const now = new Date()
+  let days = 7
+  
+  // 根据时间范围确定天数
+  switch (timeRange.value) {
+    case 'today':
+      days = 1
+      // 如果是今天，显示小时数据
+      for (let i = 0; i < 24; i++) {
+        labels.push(`${i.toString().padStart(2, '0')}:00`)
+      }
+      return labels
+    case 'week':
+      days = 7
+      break
+    case 'month':
+      days = 30
+      break
+    case 'custom':
+      if (customDateRange.value && customDateRange.value.length === 2) {
+        const start = new Date(customDateRange.value[0])
+        const end = new Date(customDateRange.value[1])
+        const diffTime = Math.abs(end - start)
+        days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+      } else {
+        days = 7
+      }
+      break
+  }
+  
+  // 生成日期标签
   for (let i = days - 1; i >= 0; i--) {
     const date = new Date(now)
     date.setDate(date.getDate() - i)
-    labels.push(date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }))
+    labels.push(date.toLocaleDateString('zh-CN', { 
+      month: '2-digit', 
+      day: '2-digit' 
+    }))
   }
+  
   return labels
 }
 
-// 生成随机数据
-const generateRandomData = (count, min, max) => {
-  return Array.from({ length: count }, () => Math.floor(Math.random() * (max - min + 1)) + min)
+// 生成周趋势标签
+const generateWeeklyLabels = () => {
+  const labels = []
+  const now = new Date()
+  let weeks = 4
+  
+  // 根据时间范围确定周数
+  switch (timeRange.value) {
+    case 'today':
+    case 'week':
+      weeks = 1
+      break
+    case 'month':
+      weeks = 4
+      break
+    case 'custom':
+      if (customDateRange.value && customDateRange.value.length === 2) {
+        const start = new Date(customDateRange.value[0])
+        const end = new Date(customDateRange.value[1])
+        const diffTime = Math.abs(end - start)
+        weeks = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 7))
+        weeks = Math.max(1, Math.min(weeks, 12)) // 限制在1-12周
+      } else {
+        weeks = 4
+      }
+      break
+  }
+  
+  // 生成周标签
+  for (let i = weeks - 1; i >= 0; i--) {
+    const weekStart = new Date(now)
+    weekStart.setDate(now.getDate() - (i * 7))
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekStart.getDate() + 6)
+    
+    const startStr = weekStart.toLocaleDateString('zh-CN', { 
+      month: '2-digit', 
+      day: '2-digit' 
+    })
+    const endStr = weekEnd.toLocaleDateString('zh-CN', { 
+      month: '2-digit', 
+      day: '2-digit' 
+    })
+    
+    labels.push(`${startStr}-${endStr}`)
+  }
+  
+  return labels
 }
+
+// 生成月趋势标签
+const generateMonthlyLabels = () => {
+  const labels = []
+  const now = new Date()
+  let months = 6 // 默认显示6个月
+  
+  // 根据时间范围确定月数
+  switch (timeRange.value) {
+    case 'today':
+    case 'week':
+      months = 1
+      break
+    case 'month':
+      months = 1
+      break
+    case 'custom':
+      if (customDateRange.value && customDateRange.value.length === 2) {
+        const start = new Date(customDateRange.value[0])
+        const end = new Date(customDateRange.value[1])
+        const diffMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
+        months = Math.max(1, Math.min(diffMonths + 1, 12)) // 限制在1-12个月
+      } else {
+        months = 6
+      }
+      break
+  }
+  
+  // 生成月标签
+  for (let i = months - 1; i >= 0; i--) {
+    const month = new Date(now)
+    month.setMonth(now.getMonth() - i)
+    labels.push(month.toLocaleDateString('zh-CN', { 
+      year: 'numeric',
+      month: '2-digit' 
+    }))
+  }
+  
+  return labels
+}
+
+// 获取播放量趋势图的时间轴标签
+const getViewChartLabels = () => {
+  switch (viewChartType.value) {
+    case 'daily':
+      return generateDailyLabels()
+    case 'weekly':
+      return generateWeeklyLabels()
+    case 'monthly':
+      return generateMonthlyLabels()
+    default:
+      return generateDailyLabels()
+  }
+}
+
+// 生成不同粒度的播放量数据
+const generateViewChartData = (count) => {
+  const data = []
+  
+  // 根据图表类型生成不同量级的数据
+  let min = 10000
+  let max = 50000
+  
+  switch (viewChartType.value) {
+    case 'daily':
+      min = 10000
+      max = 50000
+      break
+    case 'weekly':
+      min = 70000
+      max = 350000
+      break
+    case 'monthly':
+      min = 300000
+      max = 1500000
+      break
+  }
+  
+  for (let i = 0; i < count; i++) {
+    // 添加一些趋势，让数据看起来更真实
+    const trend = Math.sin(i * 0.5) * (max - min) * 0.2
+    const baseValue = min + (max - min) * 0.5
+    const randomFactor = (Math.random() - 0.5) * (max - min) * 0.3
+    const value = Math.floor(baseValue + trend + randomFactor)
+    data.push(Math.max(min * 0.5, Math.min(max * 1.5, value)))
+  }
+  
+  return data
+}
+
+// ==================== 图表初始化函数 ====================
 
 // 初始化图表
 const initChart = (chartRef, option) => {
@@ -463,11 +726,12 @@ const initAllCharts = () => {
   activePeriodChartInstance = initChart(activePeriodChartRef, getActivePeriodChartOption())
 }
 
-// 获取播放量趋势图配置
-const getViewChartOption = () => {
-  const labels = timeRange.value === 'today' 
-    ? ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00']
-    : generateDateLabels(timeRange.value === 'week' ? 7 : 30)
+// ==================== 图表配置函数 ====================
+
+// 获取播放量趋势图配置（已修复时间轴问题）
+const getViewChartOption = (isZoom = false) => {
+  const labels = getViewChartLabels()
+  const data = generateViewChartData(labels.length)
   
   return {
     backgroundColor: 'transparent',
@@ -477,14 +741,21 @@ const getViewChartOption = () => {
       borderColor: 'rgba(255, 255, 255, 0.1)',
       textStyle: { color: '#fff' },
       formatter: (params) => {
-        return `${params[0].name}<br/>播放量: ${formatNumber(params[0].value)}`
+        const name = params[0].name
+        const value = params[0].value
+        let unit = '日'
+        
+        if (viewChartType.value === 'weekly') unit = '周'
+        if (viewChartType.value === 'monthly') unit = '月'
+        
+        return `${unit}度数据: ${name}<br/>播放量: ${formatNumber(value)}`
       }
     },
     grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      top: '15%',
+      left: isZoom ? '5%' : '3%',
+      right: isZoom ? '5%' : '4%',
+      bottom: isZoom ? '12%' : '3%',
+      top: isZoom ? '15%' : '15%',
       containLabel: true
     },
     xAxis: {
@@ -492,15 +763,29 @@ const getViewChartOption = () => {
       boundaryGap: false,
       data: labels,
       axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.2)' } },
-      axisLabel: { color: 'rgba(255, 255, 255, 0.7)' }
+      axisLabel: { 
+        color: 'rgba(255, 255, 255, 0.7)',
+        interval: isZoom ? 0 : (index) => {
+          const total = labels.length
+          if (total <= 7) return 0  // 7个以内全部显示
+          if (total <= 15) return Math.floor(total / 3) - 1
+          return Math.floor(total / 5)
+        },
+        // 旋转标签避免重叠
+        rotate: labels.length > 10 ? (isZoom ? 30 : 45) : 0,
+        fontSize: isZoom ? 12 : 10
+      }
     },
     yAxis: {
       type: 'value',
       axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.2)' } },
       axisLabel: { 
         color: 'rgba(255, 255, 255, 0.7)',
+        fontSize: isZoom ? 12 : 10,
         formatter: (value) => {
-          if (value >= 10000) return (value / 10000).toFixed(0) + 'w'
+          if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M'
+          if (value >= 10000) return (value / 10000).toFixed(1) + 'w'
+          if (value >= 1000) return (value / 1000).toFixed(0) + 'k'
           return value
         }
       },
@@ -511,10 +796,10 @@ const getViewChartOption = () => {
         name: '播放量',
         type: 'line',
         smooth: true,
-        symbol: 'circle',
-        symbolSize: 8,
+        symbol: viewChartType.value === 'monthly' ? 'none' : 'circle',
+        symbolSize: isZoom ? 8 : (viewChartType.value === 'monthly' ? 0 : 6),
         lineStyle: {
-          width: 3,
+          width: isZoom ? 4 : 3,
           color: '#FE2C55'
         },
         itemStyle: {
@@ -534,14 +819,14 @@ const getViewChartOption = () => {
             }]
           }
         },
-        data: generateRandomData(labels.length, 10000, 50000)
+        data: data
       }
     ]
   }
 }
 
 // 获取用户互动分析图配置
-const getInteractionChartOption = () => {
+const getInteractionChartOption = (isZoom = false) => {
   if (interactionType.value === 'distribution') {
     return {
       backgroundColor: 'transparent',
@@ -554,16 +839,19 @@ const getInteractionChartOption = () => {
       },
       legend: {
         orient: 'vertical',
-        right: 10,
+        right: isZoom ? '5%' : 10,
         top: 'center',
-        textStyle: { color: 'rgba(255, 255, 255, 0.7)' }
+        textStyle: { 
+          color: 'rgba(255, 255, 255, 0.7)',
+          fontSize: isZoom ? 12 : 10
+        }
       },
       series: [
         {
           name: '互动类型',
           type: 'pie',
-          radius: ['40%', '70%'],
-          center: ['40%', '50%'],
+          radius: isZoom ? ['30%', '70%'] : ['40%', '70%'],
+          center: isZoom ? ['35%', '50%'] : ['40%', '50%'],
           avoidLabelOverlap: false,
           itemStyle: {
             borderRadius: 10,
@@ -573,12 +861,13 @@ const getInteractionChartOption = () => {
           label: {
             show: true,
             formatter: '{b}: {d}%',
-            color: 'rgba(255, 255, 255, 0.9)'
+            color: 'rgba(255, 255, 255, 0.9)',
+            fontSize: isZoom ? 12 : 10
           },
           emphasis: {
             label: {
               show: true,
-              fontSize: 14,
+              fontSize: isZoom ? 16 : 14,
               fontWeight: 'bold'
             }
           },
@@ -592,7 +881,7 @@ const getInteractionChartOption = () => {
       ]
     }
   } else {
-    const labels = generateDateLabels(7)
+    const labels = generateDailyLabels().slice(-7) // 最近7天
     return {
       backgroundColor: 'transparent',
       tooltip: {
@@ -604,26 +893,35 @@ const getInteractionChartOption = () => {
       },
       legend: {
         data: ['点赞', '评论', '分享'],
-        textStyle: { color: 'rgba(255, 255, 255, 0.7)' },
+        textStyle: { 
+          color: 'rgba(255, 255, 255, 0.7)',
+          fontSize: isZoom ? 12 : 10
+        },
         top: 10
       },
       grid: {
-        left: '3%',
-        right: '4%',
-        bottom: '3%',
-        top: '15%',
+        left: isZoom ? '5%' : '3%',
+        right: isZoom ? '5%' : '4%',
+        bottom: isZoom ? '12%' : '3%',
+        top: isZoom ? '15%' : '15%',
         containLabel: true
       },
       xAxis: {
         type: 'category',
         data: labels,
         axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.2)' } },
-        axisLabel: { color: 'rgba(255, 255, 255, 0.7)' }
+        axisLabel: { 
+          color: 'rgba(255, 255, 255, 0.7)',
+          fontSize: isZoom ? 12 : 10
+        }
       },
       yAxis: {
         type: 'value',
         axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.2)' } },
-        axisLabel: { color: 'rgba(255, 255, 255, 0.7)' },
+        axisLabel: { 
+          color: 'rgba(255, 255, 255, 0.7)',
+          fontSize: isZoom ? 12 : 10
+        },
         splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.1)' } }
       },
       series: [
@@ -631,7 +929,7 @@ const getInteractionChartOption = () => {
           name: '点赞',
           type: 'bar',
           stack: 'total',
-          barWidth: '60%',
+          barWidth: isZoom ? '70%' : '60%',
           itemStyle: { color: '#25F4EE' },
           data: generateRandomData(7, 1000, 5000)
         },
@@ -639,7 +937,7 @@ const getInteractionChartOption = () => {
           name: '评论',
           type: 'bar',
           stack: 'total',
-          barWidth: '60%',
+          barWidth: isZoom ? '70%' : '60%',
           itemStyle: { color: '#FF9500' },
           data: generateRandomData(7, 200, 1000)
         },
@@ -647,7 +945,7 @@ const getInteractionChartOption = () => {
           name: '分享',
           type: 'bar',
           stack: 'total',
-          barWidth: '60%',
+          barWidth: isZoom ? '70%' : '60%',
           itemStyle: { color: '#00C864' },
           data: generateRandomData(7, 50, 500)
         }
@@ -657,8 +955,8 @@ const getInteractionChartOption = () => {
 }
 
 // 获取用户增长趋势图配置
-const getUserGrowthChartOption = () => {
-  const labels = generateDateLabels(30)
+const getUserGrowthChartOption = (isZoom = false) => {
+  const labels = generateDailyLabels()
   const colors = {
     new: '#FE2C55',
     active: '#25F4EE',
@@ -667,11 +965,11 @@ const getUserGrowthChartOption = () => {
   
   let data = []
   if (userGrowthType.value === 'new') {
-    data = generateRandomData(30, 100, 1000)
+    data = generateRandomData(labels.length, 100, 1000)
   } else if (userGrowthType.value === 'active') {
-    data = generateRandomData(30, 5000, 20000)
+    data = generateRandomData(labels.length, 5000, 20000)
   } else {
-    data = Array.from({ length: 30 }, (_, i) => 10000 + i * 1000)
+    data = Array.from({ length: labels.length }, (_, i) => 10000 + i * 1000)
   }
   
   return {
@@ -686,10 +984,10 @@ const getUserGrowthChartOption = () => {
       }
     },
     grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      top: '15%',
+      left: isZoom ? '5%' : '3%',
+      right: isZoom ? '5%' : '4%',
+      bottom: isZoom ? '12%' : '3%',
+      top: isZoom ? '15%' : '15%',
       containLabel: true
     },
     xAxis: {
@@ -699,7 +997,8 @@ const getUserGrowthChartOption = () => {
       axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.2)' } },
       axisLabel: { 
         color: 'rgba(255, 255, 255, 0.7)',
-        interval: 4
+        interval: isZoom ? 0 : 4,
+        fontSize: isZoom ? 12 : 10
       }
     },
     yAxis: {
@@ -707,6 +1006,7 @@ const getUserGrowthChartOption = () => {
       axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.2)' } },
       axisLabel: { 
         color: 'rgba(255, 255, 255, 0.7)',
+        fontSize: isZoom ? 12 : 10,
         formatter: (value) => {
           if (value >= 10000) return (value / 10000).toFixed(1) + 'w'
           return value
@@ -721,9 +1021,9 @@ const getUserGrowthChartOption = () => {
         type: 'line',
         smooth: true,
         symbol: 'circle',
-        symbolSize: 6,
+        symbolSize: isZoom ? 8 : 6,
         lineStyle: {
-          width: 3,
+          width: isZoom ? 4 : 3,
           color: colors[userGrowthType.value]
         },
         itemStyle: {
@@ -750,7 +1050,7 @@ const getUserGrowthChartOption = () => {
 }
 
 // 获取视频分类分布图配置
-const getCategoryChartOption = () => {
+const getCategoryChartOption = (isZoom = false) => {
   const categories = ['生活', '娱乐', '知识', '游戏', '音乐']
   const data = [
     { value: 1560, name: '生活' },
@@ -773,16 +1073,19 @@ const getCategoryChartOption = () => {
     },
     legend: {
       orient: 'vertical',
-      right: 10,
+      right: isZoom ? '5%' : 10,
       top: 'center',
-      textStyle: { color: 'rgba(255, 255, 255, 0.7)' }
+      textStyle: { 
+        color: 'rgba(255, 255, 255, 0.7)',
+        fontSize: isZoom ? 12 : 10
+      }
     },
     series: [
       {
         name: '分类分布',
         type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['40%', '50%'],
+        radius: isZoom ? ['30%', '70%'] : ['40%', '70%'],
+        center: isZoom ? ['35%', '50%'] : ['40%', '50%'],
         avoidLabelOverlap: false,
         itemStyle: {
           borderRadius: 10,
@@ -791,14 +1094,14 @@ const getCategoryChartOption = () => {
         },
         label: {
           show: true,
-          formatter: '{b}\n{c} ({d}%)',
+          formatter: isZoom ? '{b}\n{c} ({d}%)' : '{b}\n{c} ({d}%)',
           color: 'rgba(255, 255, 255, 0.9)',
-          fontSize: 12
+          fontSize: isZoom ? 12 : 10
         },
         emphasis: {
           label: {
             show: true,
-            fontSize: 14,
+            fontSize: isZoom ? 16 : 14,
             fontWeight: 'bold'
           }
         },
@@ -812,7 +1115,7 @@ const getCategoryChartOption = () => {
 }
 
 // 获取用户活跃时段分析图配置
-const getActivePeriodChartOption = () => {
+const getActivePeriodChartOption = (isZoom = false) => {
   const hours = Array.from({ length: 24 }, (_, i) => `${i}:00`)
   const weekdayData = generateRandomData(24, 1000, 5000)
   const weekendData = generateRandomData(24, 2000, 8000)
@@ -838,10 +1141,10 @@ const getActivePeriodChartOption = () => {
       }
     },
     grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      top: '15%',
+      left: isZoom ? '5%' : '3%',
+      right: isZoom ? '5%' : '4%',
+      bottom: isZoom ? '12%' : '3%',
+      top: isZoom ? '15%' : '15%',
       containLabel: true
     },
     xAxis: {
@@ -850,7 +1153,8 @@ const getActivePeriodChartOption = () => {
       axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.2)' } },
       axisLabel: { 
         color: 'rgba(255, 255, 255, 0.7)',
-        interval: 2
+        interval: isZoom ? 1 : 2,
+        fontSize: isZoom ? 11 : 9
       }
     },
     yAxis: {
@@ -858,6 +1162,7 @@ const getActivePeriodChartOption = () => {
       axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.2)' } },
       axisLabel: { 
         color: 'rgba(255, 255, 255, 0.7)',
+        fontSize: isZoom ? 12 : 10,
         formatter: (value) => {
           if (value >= 1000) return (value / 1000).toFixed(0) + 'k'
           return value
@@ -869,7 +1174,7 @@ const getActivePeriodChartOption = () => {
       {
         name: '活跃用户',
         type: 'bar',
-        barWidth: '80%',
+        barWidth: isZoom ? '85%' : '80%',
         itemStyle: {
           color: {
             type: 'linear',
@@ -890,11 +1195,22 @@ const getActivePeriodChartOption = () => {
   }
 }
 
+// ==================== 工具函数 ====================
+
+// 生成随机数据
+const generateRandomData = (count, min, max) => {
+  return Array.from({ length: count }, () => Math.floor(Math.random() * (max - min + 1)) + min)
+}
+
 // 更新图表
 const updateCharts = () => {
+  // 重新初始化播放量趋势图
   if (viewChartInstance) {
-    viewChartInstance.setOption(getViewChartOption())
+    viewChartInstance.dispose()
+    viewChartInstance = initChart(viewChartRef, getViewChartOption())
   }
+  
+  // 更新其他图表
   if (interactionChartInstance) {
     interactionChartInstance.setOption(getInteractionChartOption())
   }
@@ -936,6 +1252,240 @@ const tableRowClassName = ({ rowIndex }) => {
   return rowIndex % 2 === 1 ? 'even-row' : ''
 }
 
+// ==================== 图表放大功能 ====================
+
+// 打开图表放大弹窗
+const openChartZoom = (chartType) => {
+  currentZoomChartType.value = chartType
+  chartZoomVisible.value = true
+  
+  // 设置弹窗标题
+  const titleMap = {
+    viewChart: '播放量趋势',
+    interactionChart: '用户互动分析',
+    userGrowthChart: '用户增长趋势',
+    categoryChart: '视频分类分布',
+    activePeriodChart: '用户活跃时段分析'
+  }
+  zoomChartTitle.value = titleMap[chartType] || '图表详情'
+  
+  // 等待DOM渲染完成后初始化放大图表
+  nextTick(() => {
+    initZoomChart()
+  })
+}
+
+// 初始化放大图表
+const initZoomChart = () => {
+  if (!zoomChartRef.value) return
+  
+  // 销毁现有实例
+  if (zoomChartInstance) {
+    zoomChartInstance.dispose()
+  }
+  
+  // 创建新的图表实例
+  zoomChartInstance = echarts.init(zoomChartRef.value)
+  
+  // 根据图表类型获取配置
+  let option = {}
+  switch (currentZoomChartType.value) {
+    case 'viewChart':
+      option = getViewChartOption(true) // true表示是放大模式
+      break
+    case 'interactionChart':
+      option = getInteractionChartOption(true)
+      break
+    case 'userGrowthChart':
+      option = getUserGrowthChartOption(true)
+      break
+    case 'categoryChart':
+      option = getCategoryChartOption(true)
+      break
+    case 'activePeriodChart':
+      option = getActivePeriodChartOption(true)
+      break
+  }
+  
+  // 调整一些配置以适应放大模式
+  if (option.legend) {
+    option.legend.right = '5%'
+    option.legend.top = '5%'
+  }
+  
+  if (option.grid) {
+    option.grid.top = '15%'
+    option.grid.bottom = '15%'
+    option.grid.left = '5%'
+    option.grid.right = '5%'
+  }
+  
+  if (option.series && option.series[0]) {
+    // 放大模式下增加线条宽度和符号大小
+    if (option.series[0].type === 'line') {
+      option.series[0].lineStyle.width = 4
+      option.series[0].symbolSize = 10
+    }
+    // 放大模式下增加柱状图宽度
+    if (option.series[0].type === 'bar') {
+      option.series[0].barWidth = '70%'
+    }
+    // 放大模式下增加饼图半径
+    if (option.series[0].type === 'pie') {
+      option.series[0].radius = ['30%', '80%']
+    }
+  }
+  
+  // 设置配置
+  zoomChartInstance.setOption(option)
+  
+  // 监听窗口大小变化
+  window.addEventListener('resize', handleZoomChartResize)
+}
+
+// 处理放大图表窗口大小变化
+const handleZoomChartResize = () => {
+  if (zoomChartInstance) {
+    zoomChartInstance.resize()
+  }
+}
+
+// 下载放大图表为图片
+const downloadZoomChart = () => {
+  if (!zoomChartInstance) {
+    ElMessage.warning('图表未加载完成')
+    return
+  }
+  
+  try {
+    const base64 = zoomChartInstance.getDataURL({
+      type: 'png',
+      pixelRatio: 2,
+      backgroundColor: '#161618'
+    })
+    
+    const link = document.createElement('a')
+    link.href = base64
+    link.download = `${zoomChartTitle.value}_${new Date().getTime()}.png`
+    link.click()
+    
+    ElMessage.success('图表已下载')
+  } catch (error) {
+    console.error('下载图表失败:', error)
+    ElMessage.error('下载失败')
+  }
+}
+
+// 切换全屏模式
+const toggleFullScreen = () => {
+  const dialogElement = document.querySelector('.chart-zoom-dialog .el-dialog')
+  
+  if (!dialogElement) return
+  
+  if (!isFullScreen.value) {
+    // 进入全屏
+    if (dialogElement.requestFullscreen) {
+      dialogElement.requestFullscreen()
+    } else if (dialogElement.mozRequestFullScreen) {
+      dialogElement.mozRequestFullScreen()
+    } else if (dialogElement.webkitRequestFullscreen) {
+      dialogElement.webkitRequestFullscreen()
+    } else if (dialogElement.msRequestFullscreen) {
+      dialogElement.msRequestFullscreen()
+    }
+    isFullScreen.value = true
+  } else {
+    // 退出全屏
+    if (document.exitFullscreen) {
+      document.exitFullscreen()
+    } else if (document.mozCancelFullScreen) {
+      document.mozCancelFullScreen()
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen()
+    } else if (document.msExitFullscreen) {
+      document.msExitFullscreen()
+    }
+    isFullScreen.value = false
+  }
+  
+  // 监听全屏变化
+  document.addEventListener('fullscreenchange', handleFullScreenChange)
+  document.addEventListener('webkitfullscreenchange', handleFullScreenChange)
+  document.addEventListener('mozfullscreenchange', handleFullScreenChange)
+  document.addEventListener('MSFullscreenChange', handleFullScreenChange)
+}
+
+// 处理全屏变化
+const handleFullScreenChange = () => {
+  const isFull = document.fullscreenElement || 
+                 document.webkitFullscreenElement || 
+                 document.mozFullScreenElement || 
+                 document.msFullscreenElement
+  
+  isFullScreen.value = !!isFull
+  
+  // 全屏变化时重新调整图表大小
+  if (zoomChartInstance) {
+    setTimeout(() => {
+      zoomChartInstance.resize()
+    }, 100)
+  }
+}
+
+// 刷新放大图表数据
+const refreshZoomChart = () => {
+  if (!zoomChartInstance) return
+  
+  // 重新获取数据并更新图表
+  switch (currentZoomChartType.value) {
+    case 'viewChart':
+      zoomChartInstance.setOption(getViewChartOption(true))
+      break
+    case 'interactionChart':
+      zoomChartInstance.setOption(getInteractionChartOption(true))
+      break
+    case 'userGrowthChart':
+      zoomChartInstance.setOption(getUserGrowthChartOption(true))
+      break
+    case 'categoryChart':
+      zoomChartInstance.setOption(getCategoryChartOption(true))
+      break
+    case 'activePeriodChart':
+      zoomChartInstance.setOption(getActivePeriodChartOption(true))
+      break
+  }
+  
+  ElMessage.success('图表数据已刷新')
+}
+
+// 处理放大弹窗关闭
+const handleZoomDialogClose = () => {
+  // 移除全屏事件监听
+  document.removeEventListener('fullscreenchange', handleFullScreenChange)
+  document.removeEventListener('webkitfullscreenchange', handleFullScreenChange)
+  document.removeEventListener('mozfullscreenchange', handleFullScreenChange)
+  document.removeEventListener('MSFullscreenChange', handleFullScreenChange)
+  
+  // 如果还在全屏模式，退出全屏
+  if (isFullScreen.value) {
+    if (document.exitFullscreen) {
+      document.exitFullscreen()
+    }
+    isFullScreen.value = false
+  }
+  
+  // 移除窗口大小变化监听
+  window.removeEventListener('resize', handleZoomChartResize)
+  
+  // 销毁图表实例
+  if (zoomChartInstance) {
+    zoomChartInstance.dispose()
+    zoomChartInstance = null
+  }
+}
+
+// ==================== 事件处理函数 ====================
+
 // 时间范围改变
 const handleTimeRangeChange = () => {
   refreshData()
@@ -946,6 +1496,43 @@ const handleCustomDateChange = () => {
   if (customDateRange.value) {
     refreshData()
   }
+}
+
+// 播放量趋势类型改变
+const handleViewChartTypeChange = () => {
+  updateCharts()
+}
+
+// 互动分析类型改变
+const handleInteractionTypeChange = () => {
+  updateCharts()
+}
+
+// 用户增长类型改变
+const handleUserGrowthTypeChange = () => {
+  updateCharts()
+}
+
+// 分类排序改变
+const handleCategorySortChange = () => {
+  updateCharts()
+}
+
+// 活跃时段改变
+const handleActivePeriodChange = () => {
+  updateCharts()
+}
+
+// 热门视频排序改变
+const handleHotVideoSortChange = () => {
+  // 这里可以添加排序逻辑
+  console.log('热门视频排序改变为:', hotVideoSort.value)
+}
+
+// 热门创作者排序改变
+const handleHotCreatorSortChange = () => {
+  // 这里可以添加排序逻辑
+  console.log('热门创作者排序改变为:', hotCreatorSort.value)
 }
 
 // 导出数据
@@ -1012,9 +1599,12 @@ const refreshData = () => {
   }, 1500)
 }
 
+// ==================== 生命周期和监听器 ====================
+
 // 监听图表类型变化
-watch([timeRange, viewChartType, interactionType, userGrowthType, categorySort, activePeriod], () => {
-  updateCharts()
+watch([viewChartType, timeRange, interactionType, userGrowthType, categorySort, activePeriod], () => {
+  // 当这些值变化时，我们已经通过单独的事件处理函数更新图表
+  // 这里可以添加其他逻辑
 })
 
 // 初始化
@@ -1042,6 +1632,18 @@ onUnmounted(() => {
   if (activePeriodChartInstance) {
     activePeriodChartInstance.dispose()
   }
+  
+  // 销毁放大图表实例
+  if (zoomChartInstance) {
+    zoomChartInstance.dispose()
+  }
+  
+  // 移除事件监听
+  document.removeEventListener('fullscreenchange', handleFullScreenChange)
+  document.removeEventListener('webkitfullscreenchange', handleFullScreenChange)
+  document.removeEventListener('mozfullscreenchange', handleFullScreenChange)
+  document.removeEventListener('MSFullscreenChange', handleFullScreenChange)
+  window.removeEventListener('resize', handleZoomChartResize)
 })
 </script>
 
@@ -1197,6 +1799,11 @@ onUnmounted(() => {
     border-radius: 12px;
     padding: 20px;
     height: 100%;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
     
     .chart-header {
       display: flex;
@@ -1218,6 +1825,21 @@ onUnmounted(() => {
         }
       }
       
+      .chart-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        
+        .el-button {
+          color: @dy-text-tertiary;
+          transition: color 0.2s ease;
+          
+          &:hover {
+            color: @dy-brand-cyan;
+          }
+        }
+      }
+      
       .chart-tabs {
         display: flex;
         gap: 8px;
@@ -1226,6 +1848,13 @@ onUnmounted(() => {
     
     .chart-container {
       height: 320px;
+      min-height: 240px;
+      
+      .chart {
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 200px;
+      }
     }
   }
 }
@@ -1431,6 +2060,62 @@ onUnmounted(() => {
   }
 }
 
+// 图表放大弹窗样式
+:deep(.chart-zoom-dialog) {
+  .el-dialog {
+    background: @dy-bg-container;
+    border-radius: 12px;
+    border: @dy-border-default;
+    
+    .el-dialog__header {
+      background: @dy-bg-elevated;
+      border-bottom: @dy-border-default;
+      border-radius: 12px 12px 0 0;
+      margin-right: 0;
+      padding: 20px;
+      
+      .el-dialog__title {
+        color: @dy-text-primary;
+        font-weight: 600;
+      }
+      
+      .el-dialog__headerbtn {
+        top: 20px;
+        right: 20px;
+        
+        .el-dialog__close {
+          color: @dy-text-tertiary;
+          
+          &:hover {
+            color: @dy-text-primary;
+          }
+        }
+      }
+    }
+    
+    .el-dialog__body {
+      padding: 0;
+    }
+  }
+}
+
+.zoom-chart-container {
+  width: 100%;
+  height: 65vh;
+  min-height: 400px;
+  background: @dy-bg-container;
+}
+
+.zoom-chart-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: @dy-bg-elevated;
+  border-top: @dy-border-default;
+}
+
 // 响应式适配
 @media (max-width: 768px) {
   .admin-data-analysis-container {
@@ -1469,8 +2154,9 @@ onUnmounted(() => {
       align-items: flex-start;
       gap: 12px;
       
-      h3 {
+      .chart-actions {
         width: 100%;
+        justify-content: space-between;
       }
     }
     
@@ -1487,11 +2173,19 @@ onUnmounted(() => {
       gap: 8px;
     }
   }
+  
+  .zoom-chart-container {
+    height: 50vh;
+  }
 }
 
 @media (min-width: 769px) and (max-width: 1024px) {
   .chart-container {
     height: 280px !important;
+  }
+  
+  .zoom-chart-container {
+    height: 55vh;
   }
 }
 </style>
