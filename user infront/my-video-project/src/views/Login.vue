@@ -16,6 +16,14 @@ const isAuthed = ref(false)
 const codeCountdown = ref(0)
 let codeTimer = null
 
+// 管理员登录页面地址（请替换为你的实际地址）
+const adminLoginUrl = 'http://localhost:5174/admin/login'
+
+// 跳转到管理员登录页（新标签页打开）
+const goToAdminLogin = () => {
+  window.open(adminLoginUrl, '_blank')
+}
+
 const loginForm = reactive({
   account: '',
   password: '',
@@ -142,7 +150,16 @@ onBeforeUnmount(() => {
     <div class="login-overlay"></div>
 
     <section class="login-card">
-      <h1 class="login-title">短视频 Demo</h1>
+      <!-- 标题与管理员按钮容器 -->
+      <div class="header-wrap">
+        <h1 class="login-title">短视频 Demo</h1>
+        <el-button
+            class="admin-login-btn"
+            @click="goToAdminLogin"
+        >
+          管理员登录
+        </el-button>
+      </div>
 
       <el-tabs v-model="activeTab" class="login-tabs">
         <el-tab-pane label="登录" name="login">
@@ -158,10 +175,10 @@ onBeforeUnmount(() => {
               <label for="agree-login">我已阅读并同意用户协议与隐私政策</label>
             </div>
             <el-button
-              class="submit w-full"
-              type="primary"
-              :loading="loginLoading"
-              @click="handleLogin"
+                class="submit w-full"
+                type="primary"
+                :loading="loginLoading"
+                @click="handleLogin"
             >
               一键登录
             </el-button>
@@ -189,10 +206,10 @@ onBeforeUnmount(() => {
               <el-input v-model="registerForm.emailCode" placeholder="请输入验证码">
                 <template #append>
                   <el-button
-                    :loading="codeLoading"
-                    :disabled="codeCountdown > 0"
-                    class="code-btn"
-                    @click="handleSendCode"
+                      :loading="codeLoading"
+                      :disabled="codeCountdown > 0"
+                      class="code-btn"
+                      @click="handleSendCode"
                   >
                     {{ codeCountdown > 0 ? `${codeCountdown}s` : '发送验证码' }}
                   </el-button>
@@ -204,10 +221,10 @@ onBeforeUnmount(() => {
               <label for="agree-register">我已阅读并同意用户协议与隐私政策</label>
             </div>
             <el-button
-              class="submit w-full"
-              type="primary"
-              :loading="registerLoading"
-              @click="handleRegister"
+                class="submit w-full"
+                type="primary"
+                :loading="registerLoading"
+                @click="handleRegister"
             >
               注册
             </el-button>
@@ -236,8 +253,8 @@ onBeforeUnmount(() => {
   inset: 0;
   z-index: 0;
   background: radial-gradient(circle at 15% 20%, rgba(34, 211, 238, 0.18), transparent 45%),
-    radial-gradient(circle at 80% 10%, rgba(59, 130, 246, 0.2), transparent 50%),
-    radial-gradient(circle at 60% 80%, rgba(249, 115, 22, 0.16), transparent 45%);
+  radial-gradient(circle at 80% 10%, rgba(59, 130, 246, 0.2), transparent 50%),
+  radial-gradient(circle at 60% 80%, rgba(249, 115, 22, 0.16), transparent 45%);
 }
 
 .login-overlay {
@@ -259,12 +276,19 @@ onBeforeUnmount(() => {
   box-shadow: var(--dy-shadow-card);
 }
 
+/* 新增：标题与按钮容器 */
+.header-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22rem;
+}
+
 .login-title {
-  margin: 0 0 22rem;
+  margin: 0;
   font-size: 26rem;
   font-family: var(--font-heading);
   color: var(--dy-text-primary);
-  text-align: center;
 }
 
 .form-block {
@@ -339,5 +363,26 @@ onBeforeUnmount(() => {
 
 .code-btn {
   color: var(--dy-brand-cyan);
+}
+
+/* 管理员登录按钮样式 - 抖音品牌红 */
+:deep(.admin-login-btn) {
+  background: #fe2c55; /* 抖音核心红 */
+  border: none;
+  border-radius: 16rem;
+  color: #fff;
+  width: 120rem;
+  height: 32rem;
+  font-size: 12rem;
+  font-weight: 500;
+  box-shadow: 0 6rem 12rem rgba(254, 44, 85, 0.4);
+
+  &:hover {
+    background: #ff3a63; /* hover 高亮红 */
+  }
+
+  &:active {
+    background: #e8274d; /* 点击加深红 */
+  }
 }
 </style>
