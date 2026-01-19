@@ -33,6 +33,12 @@ export const updatePassword = (payload) =>
 
 export const logout = () => http.post('/api/user/logout')
 
+export const getMyVideos = (params) => http.get('/api/user/videos', { params })
+
+export const getMyLikes = (params) => http.get('/api/user/likes', { params })
+
+export const getMyCollects = (params) => http.get('/api/user/collects', { params })
+
 export const uploadAvatar = (file) => {
   const formData = new FormData()
   formData.append('file', file)
@@ -49,5 +55,8 @@ export const userApi = {
   updateUserInfo,
   updatePassword,
   logout,
+  getMyVideos,
+  getMyLikes,
+  getMyCollects,
   uploadAvatar,
 }

@@ -1,10 +1,20 @@
 ﻿<script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { getVideoList, getVideoDetail } from '../api/video'
+import { ElMessage } from 'element-plus'
+import { useUserStore } from '../store/userStore'
+import {
+  getVideoList,
+  getVideoDetail,
+  recordPlay,
+  toggleLike,
+  toggleCollect,
+  getInteractionStatus,
+} from '../api/video'
 
 const emit = defineEmits(['load-more', 'comment-like', 'comment-reply'])
 const router = useRouter()
+const userStore = useUserStore()
 
 const CACHE_KEY = 'video_feed_cache_v1'
 const CACHE_TTL = 5 * 60 * 1000
@@ -32,6 +42,7 @@ const showComments = ref(false)
 const newComment = ref('')
 const replyTo = ref(null)
 const defaultAvatar = new URL('../assets/img/avatar.png', import.meta.url).href
+const playStates = new Map()
 const mockComments = ref([
   {
     id: 1,
@@ -117,6 +128,8 @@ const normalizeVideo = (item) => {
     likeCount: item.likeCount ?? 0,
     commentCount: item.commentCount ?? 0,
     collectCount: item.collectCount ?? 0,
+    isLiked: item.isLiked ?? null,
+    isCollected: item.isCollected ?? null,
     retryCount: 0,
     error: false,
   }
@@ -130,6 +143,51 @@ const extractPageList = (payload) => {
 
 const hasSignedUrl = (list) =>
   list.some((item) => typeof item?.url === 'string' && item.url.includes('?'))
+
+const ensurePlayState = (id) => {
+  if (!playStates.has(id)) {
+    playStates.set(id, {
+      total: 0,
+      lastStart: null,
+      completed: false,
+      completedReported: false,
+      durationReported: false,
+    })
+  }
+  return playStates.get(id)
+}
+
+const addPlayTime = (id) => {
+  const state = playStates.get(id)
+  if (!state || state.lastStart === null) return
+  const delta = (Date.now() - state.lastStart) / 1000
+  state.total += delta
+  state.lastStart = null
+}
+
+const reportCompleted = async (id) => {
+  const state = playStates.get(id)
+  if (!state || state.completedReported) return
+  state.completedReported = true
+  const playDuration = Math.max(0, Math.round(state.total * 100) / 100)
+  try {
+    await recordPlay(id, { playDuration, isCompleted: true })
+  } catch (error) {
+    // ignore report errors
+  }
+}
+
+const reportDuration = async (id) => {
+  const state = playStates.get(id)
+  if (!state || state.durationReported) return
+  state.durationReported = true
+  const playDuration = Math.max(0, Math.round(state.total * 100) / 100)
+  try {
+    await recordPlay(id, { playDuration, isCompleted: Boolean(state.completed) })
+  } catch (error) {
+    // ignore report errors
+  }
+}
 
 const hydrateFromCache = () => {
   try {
@@ -260,6 +318,21 @@ const refreshVideoSource = async (video) => {
   }
 }
 
+const applyInteractionStatus = async (video) => {
+  if (!video?.id || !userStore.token) return
+  const likedReady = video.isLiked !== null && video.isLiked !== undefined
+  const collectedReady = video.isCollected !== null && video.isCollected !== undefined
+  if (likedReady && collectedReady) return
+  try {
+    const { data } = await getInteractionStatus(video.id)
+    if (data?.code !== 200) return
+    video.isLiked = data?.data?.isLiked ?? false
+    video.isCollected = data?.data?.isCollected ?? false
+  } catch (error) {
+    // ignore interaction fetch errors
+  }
+}
+
 const handleVideoError = async (video) => {
   if (!video) return
   if (!Number.isFinite(video.retryCount)) {
@@ -315,6 +388,30 @@ const handleTimeUpdate = (index, event) => {
   }
 }
 
+const handleVideoPlay = (index) => {
+  const video = videos.value[index]
+  if (!video?.id) return
+  const state = ensurePlayState(video.id)
+  if (state.lastStart === null) {
+    state.lastStart = Date.now()
+  }
+}
+
+const handleVideoPause = (index) => {
+  const video = videos.value[index]
+  if (!video?.id) return
+  addPlayTime(video.id)
+}
+
+const handleVideoEnded = (index) => {
+  const video = videos.value[index]
+  if (!video?.id) return
+  addPlayTime(video.id)
+  const state = ensurePlayState(video.id)
+  state.completed = true
+  reportCompleted(video.id)
+}
+
 const handleLoadedMetadata = (index, event) => {
   const el = event?.target
   if (!el) return
@@ -331,6 +428,55 @@ const togglePlay = (index) => {
     }
   } else {
     video.pause()
+  }
+}
+
+const ensureAuth = () => {
+  if (userStore.token) return true
+  ElMessage.warning('请先登录')
+  router.push('/login')
+  return false
+}
+
+const handleToggleLike = async (video) => {
+  if (!video?.id || !ensureAuth()) return
+  try {
+    const { data } = await toggleLike(video.id)
+    if (data?.code !== 200) {
+      ElMessage.error(data?.message || '操作失败')
+      return
+    }
+    const nextLiked = data?.data?.isLiked ?? !video.isLiked
+    const nextCount = data?.data?.likeCount
+    video.isLiked = nextLiked
+    if (typeof nextCount === 'number') {
+      video.likeCount = nextCount
+    } else {
+      video.likeCount = Math.max(0, (video.likeCount || 0) + (nextLiked ? 1 : -1))
+    }
+  } catch (error) {
+    ElMessage.error('操作失败，请稍后重试')
+  }
+}
+
+const handleToggleCollect = async (video) => {
+  if (!video?.id || !ensureAuth()) return
+  try {
+    const { data } = await toggleCollect(video.id)
+    if (data?.code !== 200) {
+      ElMessage.error(data?.message || '操作失败')
+      return
+    }
+    const nextCollected = data?.data?.isCollected ?? !video.isCollected
+    const nextCount = data?.data?.collectCount
+    video.isCollected = nextCollected
+    if (typeof nextCount === 'number') {
+      video.collectCount = nextCount
+    } else {
+      video.collectCount = Math.max(0, (video.collectCount || 0) + (nextCollected ? 1 : -1))
+    }
+  } catch (error) {
+    ElMessage.error('操作失败，请稍后重试')
   }
 }
 
@@ -486,8 +632,6 @@ const handleWheel = (e) => {
   }
 }
 
-const getAuthorKey = (video) => video.authorId ?? video.authorName ?? video.author ?? 'unknown'
-
 const openCreatorProfile = async (video) => {
   if (!video) return
   let authorId = video.authorId ?? null
@@ -503,19 +647,13 @@ const openCreatorProfile = async (video) => {
       // ignore fetch errors, fallback to name
     }
   }
-  if (authorId !== null && authorId !== undefined) {
-    videos.value.forEach((item) => {
-      if (!item || item.authorId !== null && item.authorId !== undefined) return
-      const itemName = item.authorName || item.author
-      if (itemName && itemName === authorName) {
-        item.authorId = authorId
-      }
-    })
+  if (authorId === null || authorId === undefined) {
+    ElMessage.warning('作者信息缺失')
+    return
   }
-  const authorKey = authorId ?? authorName
-  const works = videos.value.filter((item) => getAuthorKey(item) === authorKey)
+  const works = videos.value.filter((item) => item.authorId === authorId)
   const payload = {
-    id: authorKey,
+    id: authorId,
     name: authorName,
     account: video.author || `@${authorName || 'unknown'}`,
     avatar: video.authorAvatar || defaultAvatar,
@@ -524,7 +662,7 @@ const openCreatorProfile = async (video) => {
   sessionStorage.setItem('creator_profile', JSON.stringify(payload))
   router.push({
     name: 'creator',
-    params: { userId: String(payload.id || 'unknown') },
+    params: { userId: String(authorId) },
   })
 }
 
@@ -559,9 +697,17 @@ onMounted(() => {
 
 watch(
   () => currentIndex.value,
-  (index) => {
+  (index, prevIndex) => {
+    if (Number.isFinite(prevIndex) && prevIndex !== index) {
+      const prevVideo = videos.value[prevIndex]
+      if (prevVideo?.id) {
+        addPlayTime(prevVideo.id)
+        reportDuration(prevVideo.id)
+      }
+    }
     if (videos.value.length) {
       syncPlayback(index)
+      applyInteractionStatus(videos.value[index])
     }
     persistCache()
     showComments.value = false
@@ -575,11 +721,17 @@ watch(
   (length) => {
     if (length) {
       syncPlayback(currentIndex.value)
+      applyInteractionStatus(videos.value[currentIndex.value])
     }
   }
 )
 
 onBeforeUnmount(() => {
+  const current = videos.value[currentIndex.value]
+  if (current?.id) {
+    addPlayTime(current.id)
+    reportDuration(current.id)
+  }
   if (switchTimer) {
     window.clearTimeout(switchTimer)
     switchTimer = null
@@ -619,6 +771,9 @@ onBeforeUnmount(() => {
               playsinline
               :preload="index === currentIndex ? 'auto' : 'metadata'"
               :ref="(el) => setVideoRef(el, index)"
+              @play="handleVideoPlay(index)"
+              @pause="handleVideoPause(index)"
+              @ended="handleVideoEnded(index)"
               @timeupdate="handleTimeUpdate(index, $event)"
               @loadedmetadata="handleLoadedMetadata(index, $event)"
               @error="handleVideoError(video)"
@@ -658,19 +813,23 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div class="player-actions">
-            <button class="action" @click.stop>
-              <img src="../assets/img/icon/love.svg" alt="like" />
-              <span>{{ video.likeCount }}</span>
-            </button>
-            <button class="action" @click.stop="toggleComments">
-              <img src="../assets/img/icon/message.svg" alt="comment" />
-              <span>{{ video.commentCount }}</span>
-            </button>
-            <button class="action" @click.stop>
-              <img src="../assets/img/icon/star-white.png" alt="collect" />
-              <span>{{ video.collectCount }}</span>
-            </button>
+            <div class="player-actions">
+              <button class="action" :class="{ active: video.isLiked }" @click.stop="handleToggleLike(video)">
+                <img src="../assets/img/icon/love.svg" alt="like" />
+                <span>{{ video.likeCount }}</span>
+              </button>
+              <button class="action" @click.stop="toggleComments">
+                <img src="../assets/img/icon/message.svg" alt="comment" />
+                <span>{{ video.commentCount }}</span>
+              </button>
+              <button
+                class="action"
+                :class="{ active: video.isCollected }"
+                @click.stop="handleToggleCollect(video)"
+              >
+                <img src="../assets/img/icon/star-white.png" alt="collect" />
+                <span>{{ video.collectCount }}</span>
+              </button>
             <button class="action" @click.stop>
               <img src="../assets/img/icon/share-white.png" alt="share" />
               <span>分享</span>
@@ -870,6 +1029,15 @@ onBeforeUnmount(() => {
 .action:hover {
   transform: translateY(-2rem);
   background: rgba(28, 32, 48, 0.9);
+}
+
+.action.active {
+  background: rgba(248, 113, 113, 0.25);
+  color: #fff;
+}
+
+.action.active img {
+  filter: drop-shadow(0 0 6rem rgba(248, 113, 113, 0.6));
 }
 
 .action img {

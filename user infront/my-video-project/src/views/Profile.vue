@@ -21,6 +21,21 @@ const videoPreview = ref('')
 const videoDuration = ref(0)
 const uploadLoading = ref(false)
 const myUploads = ref([])
+const myUploadsLoading = ref(false)
+const uploadsPageNum = ref(1)
+const uploadsHasMore = ref(true)
+const uploadsPageSize = 12
+const likeVideos = ref([])
+const collectVideos = ref([])
+const likesLoading = ref(false)
+const collectsLoading = ref(false)
+const likesPageNum = ref(1)
+const collectsPageNum = ref(1)
+const likesHasMore = ref(true)
+const collectsHasMore = ref(true)
+const likesPageSize = 12
+const collectsPageSize = 12
+const activeLibraryTab = ref('likes')
 
 const profile = ref(null)
 
@@ -55,7 +70,6 @@ const displayName = computed(
 )
 
 const displayId = computed(() => profile.value?.id || profile.value?.userId || '--')
-const profileId = computed(() => profile.value?.id ?? profile.value?.userId ?? null)
 const followCount = computed(() => profile.value?.followCount ?? 0)
 const likeCount = computed(() => profile.value?.likeCount ?? 0)
 const signature = computed(() => profile.value?.description || profile.value?.signature || '暂无签名')
@@ -95,27 +109,203 @@ const resetUpload = () => {
   uploadForm.tags = ''
 }
 
-const getUploadKey = () => `myUploads_${profileId.value ?? 'guest'}`
+const extractPageList = (payload) => {
+  const pageData = payload?.data ?? payload
+  const list = pageData?.records ?? pageData?.list ?? []
+  return Array.isArray(list) ? list : []
+}
 
-const loadMyUploads = () => {
-  try {
-    const raw = localStorage.getItem(getUploadKey())
-    const parsed = raw ? JSON.parse(raw) : []
-    const currentId = profileId.value
-    myUploads.value =
-      currentId !== null && currentId !== undefined
-        ? parsed.filter((item) => item.authorId === currentId)
-        : parsed
-  } catch (error) {
-    myUploads.value = []
+const normalizeLibraryVideo = (item) => {
+  if (!item) return null
+  return {
+    id: item.videoId || item.id,
+    title: item.title || item.videoTitle || '未命名视频',
+    description: item.description || item.desc || '',
+    videoUrl: item.videoUrl || item.url || '',
+    coverUrl: item.coverUrl || item.cover || '',
+    duration: item.duration || 0,
+    authorName: item.authorName || item.author || '',
   }
 }
 
-const saveMyUploads = () => {
+const normalizeMyVideo = (item) => {
+  if (!item) return null
+  return {
+    id: item.videoId || item.id,
+    title: item.title || item.videoTitle || '未命名视频',
+    description: item.description || item.desc || '',
+    videoUrl: item.videoUrl || item.url || '',
+    coverUrl: item.coverUrl || item.cover || '',
+    duration: item.duration || 0,
+    status: item.auditStatus ?? item.status ?? null,
+    createdAt: item.createTime || item.createdAt,
+  }
+}
+
+const fetchMyUploads = async (append = false) => {
+  if (!userStore.token) {
+    myUploads.value = []
+    uploadsHasMore.value = false
+    return
+  }
+  if (!append) {
+    uploadsPageNum.value = 1
+    uploadsHasMore.value = true
+    myUploads.value = []
+  }
+  if (myUploadsLoading.value || !uploadsHasMore.value) return
+  myUploadsLoading.value = true
   try {
-    localStorage.setItem(getUploadKey(), JSON.stringify(myUploads.value))
+    const { data } = await userApi.getMyVideos({
+      pageNum: uploadsPageNum.value,
+      pageSize: uploadsPageSize,
+    })
+    if (data?.code === 200) {
+      const list = extractPageList(data)
+      const mapped = list.map(normalizeMyVideo).filter(Boolean)
+      if (append) {
+        myUploads.value.push(...mapped)
+      } else {
+        myUploads.value = mapped
+      }
+      const pageData = data?.data ?? data
+      if (typeof pageData?.pages === 'number') {
+        uploadsHasMore.value = uploadsPageNum.value < pageData.pages
+      } else {
+        uploadsHasMore.value = list.length >= uploadsPageSize
+      }
+      if (uploadsHasMore.value) {
+        uploadsPageNum.value += 1
+      }
+      return
+    }
+    ElMessage.error(data?.message || '获取作品失败')
   } catch (error) {
-    // ignore storage errors
+    ElMessage.error('获取作品失败，请稍后重试')
+  } finally {
+    myUploadsLoading.value = false
+  }
+}
+
+const loadMoreUploads = () => fetchMyUploads(true)
+
+const fetchLikes = async (append = false) => {
+  if (!userStore.token) {
+    likeVideos.value = []
+    likesHasMore.value = false
+    return
+  }
+  if (!append) {
+    likesPageNum.value = 1
+    likesHasMore.value = true
+    likeVideos.value = []
+  }
+  if (likesLoading.value || !likesHasMore.value) return
+  likesLoading.value = true
+  try {
+    const { data } = await userApi.getMyLikes({
+      pageNum: likesPageNum.value,
+      pageSize: likesPageSize,
+    })
+    if (data?.code === 200) {
+      const list = extractPageList(data)
+      const mapped = list.map(normalizeLibraryVideo).filter(Boolean)
+      if (append) {
+        likeVideos.value.push(...mapped)
+      } else {
+        likeVideos.value = mapped
+      }
+      const pageData = data?.data ?? data
+      if (typeof pageData?.pages === 'number') {
+        likesHasMore.value = likesPageNum.value < pageData.pages
+      } else {
+        likesHasMore.value = list.length >= likesPageSize
+      }
+      if (likesHasMore.value) {
+        likesPageNum.value += 1
+      }
+      return
+    }
+    ElMessage.error(data?.message || '获取喜欢失败')
+  } catch (error) {
+    ElMessage.error('获取喜欢失败，请稍后重试')
+  } finally {
+    likesLoading.value = false
+  }
+}
+
+const fetchCollects = async (append = false) => {
+  if (!userStore.token) {
+    collectVideos.value = []
+    collectsHasMore.value = false
+    return
+  }
+  if (!append) {
+    collectsPageNum.value = 1
+    collectsHasMore.value = true
+    collectVideos.value = []
+  }
+  if (collectsLoading.value || !collectsHasMore.value) return
+  collectsLoading.value = true
+  try {
+    const { data } = await userApi.getMyCollects({
+      pageNum: collectsPageNum.value,
+      pageSize: collectsPageSize,
+    })
+    if (data?.code === 200) {
+      const list = extractPageList(data)
+      const mapped = list.map(normalizeLibraryVideo).filter(Boolean)
+      if (append) {
+        collectVideos.value.push(...mapped)
+      } else {
+        collectVideos.value = mapped
+      }
+      const pageData = data?.data ?? data
+      if (typeof pageData?.pages === 'number') {
+        collectsHasMore.value = collectsPageNum.value < pageData.pages
+      } else {
+        collectsHasMore.value = list.length >= collectsPageSize
+      }
+      if (collectsHasMore.value) {
+        collectsPageNum.value += 1
+      }
+      return
+    }
+    ElMessage.error(data?.message || '获取收藏失败')
+  } catch (error) {
+    ElMessage.error('获取收藏失败，请稍后重试')
+  } finally {
+    collectsLoading.value = false
+  }
+}
+
+const loadMoreLikes = () => fetchLikes(true)
+const loadMoreCollects = () => fetchCollects(true)
+
+const libraryList = computed(() =>
+  activeLibraryTab.value === 'likes' ? likeVideos.value : collectVideos.value
+)
+const libraryLoading = computed(() =>
+  activeLibraryTab.value === 'likes' ? likesLoading.value : collectsLoading.value
+)
+const libraryHasMore = computed(() =>
+  activeLibraryTab.value === 'likes' ? likesHasMore.value : collectsHasMore.value
+)
+
+const ensureLibraryData = (tab) => {
+  if (tab === 'likes' && likeVideos.value.length === 0 && !likesLoading.value) {
+    fetchLikes()
+  }
+  if (tab === 'collects' && collectVideos.value.length === 0 && !collectsLoading.value) {
+    fetchCollects()
+  }
+}
+
+const loadMoreLibrary = () => {
+  if (activeLibraryTab.value === 'likes') {
+    loadMoreLikes()
+  } else {
+    loadMoreCollects()
   }
 }
 
@@ -125,7 +315,7 @@ const fetchProfile = async () => {
     if (data?.code === 200) {
       profile.value = data?.data || null
       syncEditForm(profile.value)
-      loadMyUploads()
+      fetchMyUploads()
       if (userStore.setUserInfo) {
         userStore.setUserInfo(profile.value)
       }
@@ -242,20 +432,9 @@ const handleUploadVideo = async () => {
     }
     const { data } = await videoApi.uploadVideo(payload)
     if (data?.code === 200) {
-      const uploaded = data?.data || {}
-      myUploads.value.unshift({
-        id: uploaded.videoId || Date.now(),
-        title: uploadForm.title,
-        description: uploadForm.description,
-        videoUrl: uploaded.videoUrl || videoPreview.value,
-        duration: videoDuration.value || 0,
-        authorId: profileId.value ?? null,
-        status: '审核中',
-        createdAt: new Date().toISOString(),
-      })
-      saveMyUploads()
       ElMessage.success('上传成功，等待审核')
       resetUpload()
+      fetchMyUploads()
     } else {
       ElMessage.error(data?.message || '上传失败')
     }
@@ -286,11 +465,7 @@ const handleUpdatePassword = async () => {
       ElMessage.error(data?.message || '密码修改失败')
     }
   } catch (error) {
-    if (error?.response?.status === 404) {
-      ElMessage.warning('后端暂未提供修改密码接口')
-    } else {
-      ElMessage.error('密码修改失败，请稍后重试')
-    }
+    ElMessage.error('密码修改失败，请稍后重试')
   } finally {
     passwordLoading.value = false
   }
@@ -314,16 +489,25 @@ const handleBack = () => {
 }
 
 onMounted(() => {
-  loadMyUploads()
   if (userStore.token) {
     fetchProfile()
+    ensureLibraryData(activeLibraryTab.value)
+  } else {
+    fetchMyUploads()
   }
 })
 
 watch(
   () => profile.value?.id,
   () => {
-    loadMyUploads()
+    fetchMyUploads()
+  }
+)
+
+watch(
+  () => activeLibraryTab.value,
+  (tab) => {
+    ensureLibraryData(tab)
   }
 )
 
@@ -437,7 +621,8 @@ onBeforeUnmount(() => {
           <h2>我的作品</h2>
           <span class="section-tip">已上传 {{ myUploads.length }} 条</span>
         </div>
-        <div v-if="myUploads.length === 0" class="works-empty">
+        <div v-if="myUploadsLoading" class="works-empty">加载中...</div>
+        <div v-else-if="myUploads.length === 0" class="works-empty">
           暂无作品，上传你的第一支视频吧。
         </div>
         <div v-else class="works-grid">
@@ -450,6 +635,7 @@ onBeforeUnmount(() => {
                 playsinline
                 preload="metadata"
               ></video>
+              <img v-else-if="item.coverUrl" :src="item.coverUrl" alt="cover" />
               <div v-else class="work-placeholder">暂无预览</div>
             </div>
             <div class="work-info">
@@ -457,11 +643,71 @@ onBeforeUnmount(() => {
               <div class="work-desc">{{ item.description || '暂无简介' }}</div>
               <div class="work-meta">
                 <span>{{ formatDuration(item.duration || 0) }}</span>
-                <span class="work-status">{{ item.status || '审核中' }}</span>
+                <span class="work-status">{{ item.status ?? '已发布' }}</span>
               </div>
             </div>
           </article>
         </div>
+        <div v-if="uploadsHasMore && myUploads.length" class="works-more">
+          <el-button :loading="myUploadsLoading" @click="loadMoreUploads">加载更多</el-button>
+        </div>
+        <div v-else-if="!uploadsHasMore && myUploads.length" class="works-end">没有更多了</div>
+      </section>
+
+      <section class="section library-section">
+        <div class="section-title">
+          <h2>我的互动</h2>
+          <div class="library-tabs">
+            <button
+              type="button"
+              class="library-tab"
+              :class="{ active: activeLibraryTab === 'likes' }"
+              @click="activeLibraryTab = 'likes'"
+            >
+              喜欢
+            </button>
+            <button
+              type="button"
+              class="library-tab"
+              :class="{ active: activeLibraryTab === 'collects' }"
+              @click="activeLibraryTab = 'collects'"
+            >
+              收藏
+            </button>
+          </div>
+        </div>
+        <p class="section-tip">
+          共 {{ activeLibraryTab === 'likes' ? likeVideos.length : collectVideos.length }} 条
+        </p>
+        <div v-if="libraryLoading && libraryList.length === 0" class="works-empty">加载中...</div>
+        <div v-else-if="libraryList.length === 0" class="works-empty">暂无数据</div>
+        <div v-else class="works-grid">
+          <article v-for="item in libraryList" :key="item.id" class="work-card">
+            <div class="work-thumb">
+              <video
+                v-if="item.videoUrl"
+                :src="item.videoUrl"
+                muted
+                playsinline
+                preload="metadata"
+              ></video>
+              <img v-else-if="item.coverUrl" :src="item.coverUrl" alt="cover" />
+              <div v-else class="work-placeholder">暂无预览</div>
+            </div>
+            <div class="work-info">
+              <div class="work-title">{{ item.title }}</div>
+              <div class="work-desc">{{ item.description || '暂无简介' }}</div>
+              <div class="work-meta">
+                <span>{{ formatDuration(item.duration || 0) }}</span>
+                <span v-if="item.authorName">@{{ item.authorName }}</span>
+              </div>
+            </div>
+          </article>
+        </div>
+        <div v-if="libraryHasMore && libraryList.length" class="works-more">
+          <el-button :loading="libraryLoading" @click="loadMoreLibrary">加载更多</el-button>
+        </div>
+        <div v-else-if="!libraryHasMore && libraryList.length" class="works-end">没有更多了</div>
       </section>
 
       <section class="section">
@@ -726,6 +972,37 @@ onBeforeUnmount(() => {
   gap: 16px;
 }
 
+.library-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.library-tab {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: transparent;
+  color: var(--dy-text-secondary);
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.library-tab.active {
+  background: linear-gradient(120deg, var(--dy-brand-blue), var(--dy-brand-cyan));
+  color: #0f172a;
+  border-color: transparent;
+}
+
+.works-more,
+.works-end {
+  margin-top: 14px;
+  display: flex;
+  justify-content: center;
+  color: var(--dy-text-tertiary);
+  font-size: 12px;
+}
+
 .work-card {
   border-radius: 16px;
   overflow: hidden;
@@ -740,7 +1017,8 @@ onBeforeUnmount(() => {
   background: #0b0d16;
 }
 
-.work-thumb video {
+.work-thumb video,
+.work-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;

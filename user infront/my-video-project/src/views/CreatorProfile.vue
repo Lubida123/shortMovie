@@ -1,11 +1,14 @@
 ﻿<script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getVideoList, getVideoDetail } from '../api/video'
+import { getVideoList } from '../api/video'
+import { useUserStore } from '../store/userStore'
+import * as userApi from '../api/user'
 
 const route = useRoute()
 const router = useRouter()
 const defaultAvatar = new URL('../assets/img/avatar.png', import.meta.url).href
+const userStore = useUserStore()
 
 const loadingWorks = ref(false)
 
@@ -31,8 +34,6 @@ const formatDuration = (value) => {
   return `${m}:${s}`
 }
 
-const isNumericId = (value) => /^\d+$/.test(String(value || ''))
-
 const normalizeWork = (item) => {
   if (!item) return null
   return {
@@ -49,6 +50,46 @@ const extractPageList = (payload) => {
   const pageData = payload?.data ?? payload
   const list = pageData?.records ?? pageData?.list ?? []
   return Array.isArray(list) ? list : []
+}
+
+const syncCreatorProfile = (profile, fallbackId) => {
+  if (!profile) return
+  creator.value = {
+    ...creator.value,
+    id: profile.id ?? profile.userId ?? fallbackId ?? creator.value.id,
+    name: profile.nickname || profile.username || creator.value.name || '未命名用户',
+    account: profile.username ? `@${profile.username}` : creator.value.account,
+    avatar: profile.avatar || creator.value.avatar || defaultAvatar,
+  }
+}
+
+const fetchSelfWorks = async (userId) => {
+  const pageSize = 20
+  let pageNum = 1
+  let hasMore = true
+  const worksMap = new Map()
+  while (hasMore) {
+    const { data } = await userApi.getMyVideos({ pageNum, pageSize })
+    if (data?.code !== 200) break
+    const list = extractPageList(data)
+    if (list.length === 0) break
+    list
+      .map(normalizeWork)
+      .filter(Boolean)
+      .forEach((item) => {
+        if (item?.id !== undefined && item?.id !== null) {
+          worksMap.set(item.id, item)
+        }
+      })
+    const pageData = data?.data ?? data
+    if (typeof pageData?.pages === 'number') {
+      hasMore = pageNum < pageData.pages
+    } else {
+      hasMore = list.length >= pageSize
+    }
+    pageNum += 1
+  }
+  creator.value.works = Array.from(worksMap.values())
 }
 
 const loadCreator = () => {
@@ -84,35 +125,52 @@ const loadCreator = () => {
 const fetchUserWorks = async (userId) => {
   if (!userId) return
   loadingWorks.value = true
-  const matchById = isNumericId(userId)
   try {
-    const { data } = await getVideoList({ pageNum: 1, pageSize: 30 })
-    if (data?.code !== 200) return
-    const list = extractPageList(data)
-    const details = await Promise.all(
-      list.map(async (item) => {
-        const id = item.videoId || item.id
-        if (!id) return null
-        try {
-          const { data: detail } = await getVideoDetail(id)
-          if (detail?.code !== 200) return null
-          return detail?.data || null
-        } catch (error) {
-          return null
+    const currentId = userStore.userInfo?.id ?? userStore.userInfo?.userId
+    if (currentId && String(currentId) === String(userId)) {
+      syncCreatorProfile(userStore.userInfo, userId)
+      await fetchSelfWorks(userId)
+      return
+    }
+    if (userStore.token && !currentId) {
+      const profile = await userStore.fetchProfile()
+      const profileId = profile?.id ?? profile?.userId
+      if (profileId && String(profileId) === String(userId)) {
+        syncCreatorProfile(profile, userId)
+        await fetchSelfWorks(userId)
+        return
+      }
+    }
+    const pageSize = 20
+    let pageNum = 1
+    let hasMore = true
+    const worksMap = new Map()
+    while (hasMore) {
+      const { data } = await getVideoList({
+        pageNum,
+        pageSize,
+        authorId: userId,
+      })
+      if (data?.code !== 200) break
+      const list = extractPageList(data)
+      if (list.length === 0) break
+      list
+        .map(normalizeWork)
+        .filter(Boolean)
+        .forEach((item) => {
+        if (item?.id !== undefined && item?.id !== null) {
+          worksMap.set(item.id, item)
         }
       })
-    )
-    const filtered = details
-      .filter((detail) => {
-        if (!detail) return false
-        if (matchById) {
-          return String(detail.authorId) === String(userId)
-        }
-        return String(detail.authorName || '') === String(userId)
-      })
-      .map(normalizeWork)
-      .filter(Boolean)
-    creator.value.works = filtered
+      const pageData = data?.data ?? data
+      if (typeof pageData?.pages === 'number') {
+        hasMore = pageNum < pageData.pages
+      } else {
+        hasMore = list.length >= pageSize
+      }
+      pageNum += 1
+    }
+    creator.value.works = Array.from(worksMap.values())
   } finally {
     loadingWorks.value = false
   }
@@ -128,7 +186,7 @@ const handleBack = () => {
 
 onMounted(async () => {
   loadCreator()
-  if (works.value.length === 0 && route.params.userId) {
+  if (route.params.userId) {
     await fetchUserWorks(route.params.userId)
   }
 })
@@ -137,7 +195,7 @@ watch(
   () => route.params.userId,
   async (value) => {
     loadCreator()
-    if (works.value.length === 0 && value) {
+    if (value) {
       await fetchUserWorks(value)
     }
   }
