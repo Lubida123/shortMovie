@@ -41,28 +41,7 @@
           </el-input>
         </el-form-item>
 
-        <!-- 核心修改：图片验证码 → 短信验证码+发送按钮 -->
-        <el-form-item prop="captcha">
-          <div class="captcha-wrap">
-            <el-input
-              v-model="loginForm.captcha"
-              placeholder="请输入验证码"
-              class="dy-input captcha-input"
-            >
-              <template #prefix>
-                <el-icon><ChatDotSquare /></el-icon>
-              </template>
-            </el-input>
-            <!-- 发送验证码按钮（仅展示，暂不实现功能） -->
-            <el-button
-              class="send-captcha-btn"
-              :disabled="sendBtnDisabled"
-              @click="handleSendCaptcha"
-            >
-              {{ sendBtnText }}
-            </el-button>
-          </div>
-        </el-form-item>
+       
 
         <el-form-item class="form-actions">
           <el-checkbox v-model="loginForm.remember" class="remember-checkbox">
@@ -102,22 +81,19 @@ const isLoading = ref(false)
 const loginForm = ref({
   username: '',
   password: '',
-  captcha: '', // 改为短信验证码
   remember: false
 })
 
 // 验证码按钮相关（仅展示，暂不实现倒计时）
 const sendBtnDisabled = ref(false)
-const sendBtnText = ref('发送验证码')
 
 // 表单校验规则（保留验证码校验，仅改提示）
 const loginRules = ref({
   username: [{ required: true, message: '请输入管理员账号', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入管理员密码', trigger: 'blur' }],
-  captcha: [{ required: true, message: '请输入验证码', trigger: 'blur' }]
+  password: [{ required: true, message: '请输入管理员密码', trigger: 'blur' }]
 })
 
-// 初始化（移除验证码图片相关逻辑）
+// 初始化
 onMounted(() => {
   // 记住密码逻辑（可选）
   const savedUser = localStorage.getItem('admin_saved_user')
@@ -135,8 +111,6 @@ const handleSendCaptcha = () => {
     return
   }
   
-  // 仅展示提示，不调用实际接口
-  ElMessage.info('验证码发送功能暂未实现，可输入任意字符测试')
 }
 
 // 登录处理（逻辑不变，仅验证码改为短信验证码）
@@ -149,7 +123,6 @@ const handleLogin = async () => {
     const res = await adminLogin({
       username: loginForm.value.username,
       password: loginForm.value.password,
-      captcha: loginForm.value.captcha
     })
 
     // 存储Token和用户信息
@@ -168,7 +141,7 @@ const handleLogin = async () => {
     ElMessage.success('登录成功')
     router.push('/admin/home')
   } catch (error) {
-    ElMessage.error(error.msg || '登录失败，请检查账号密码或验证码')
+    ElMessage.error(error.msg || '登录失败，请检查账号密码')
   } finally {
     isLoading.value = false
   }
