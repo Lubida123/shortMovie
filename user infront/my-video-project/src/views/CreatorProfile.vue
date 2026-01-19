@@ -184,6 +184,12 @@ const handleBack = () => {
   router.push('/home')
 }
 
+const openWork = (item) => {
+  if (!item?.id) return
+  sessionStorage.setItem('video_feed_target_id', String(item.id))
+  router.push('/home')
+}
+
 onMounted(async () => {
   loadCreator()
   if (route.params.userId) {
@@ -226,7 +232,7 @@ watch(
         <div v-if="loadingWorks" class="works-empty">加载中...</div>
         <div v-else-if="works.length === 0" class="works-empty">暂无作品</div>
         <div v-else class="works-grid">
-          <article v-for="item in works" :key="item.id" class="work-card">
+          <article v-for="item in works" :key="item.id" class="work-card" @click="openWork(item)">
             <div class="work-thumb">
               <video
                 v-if="item.url || item.videoUrl"
@@ -385,6 +391,13 @@ watch(
   background: rgba(12, 15, 24, 0.8);
   border: 1px solid rgba(148, 163, 184, 0.16);
   display: grid;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.work-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(2, 6, 23, 0.45);
 }
 
 .work-thumb {

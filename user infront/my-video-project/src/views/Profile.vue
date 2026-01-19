@@ -488,6 +488,12 @@ const handleBack = () => {
   router.push('/')
 }
 
+const openWork = (item) => {
+  if (!item?.id) return
+  sessionStorage.setItem('video_feed_target_id', String(item.id))
+  router.push('/home')
+}
+
 onMounted(() => {
   if (userStore.token) {
     fetchProfile()
@@ -626,7 +632,7 @@ onBeforeUnmount(() => {
           暂无作品，上传你的第一支视频吧。
         </div>
         <div v-else class="works-grid">
-          <article v-for="item in myUploads" :key="item.id" class="work-card">
+          <article v-for="item in myUploads" :key="item.id" class="work-card" @click="openWork(item)">
             <div class="work-thumb">
               <video
                 v-if="item.videoUrl"
@@ -682,7 +688,7 @@ onBeforeUnmount(() => {
         <div v-if="libraryLoading && libraryList.length === 0" class="works-empty">加载中...</div>
         <div v-else-if="libraryList.length === 0" class="works-empty">暂无数据</div>
         <div v-else class="works-grid">
-          <article v-for="item in libraryList" :key="item.id" class="work-card">
+          <article v-for="item in libraryList" :key="item.id" class="work-card" @click="openWork(item)">
             <div class="work-thumb">
               <video
                 v-if="item.videoUrl"
@@ -1009,6 +1015,13 @@ onBeforeUnmount(() => {
   background: rgba(12, 15, 24, 0.8);
   border: 1px solid rgba(148, 163, 184, 0.16);
   display: grid;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.work-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(2, 6, 23, 0.45);
 }
 
 .work-thumb {

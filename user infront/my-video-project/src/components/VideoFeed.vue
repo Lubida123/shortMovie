@@ -91,6 +91,10 @@ const mockComments = ref([
   },
 ])
 let switchTimer = null
+const targetVideoId = ref(null)
+const targetResolved = ref(false)
+const targetAttempts = ref(0)
+const MAX_TARGET_ATTEMPTS = 3
 
 const wrapperStyle = computed(() => ({
   transform: `translate3d(0, -${currentIndex.value * 100}%, 0)`,
@@ -270,6 +274,44 @@ const fetchVideos = async () => {
     }
   } finally {
     loading.value = false
+  }
+}
+
+const resolveTargetFromList = () => {
+  if (!targetVideoId.value || targetResolved.value) return false
+  const index = videos.value.findIndex(
+    (item) => String(item?.id) === String(targetVideoId.value)
+  )
+  if (index >= 0) {
+    currentIndex.value = index
+    targetResolved.value = true
+    targetVideoId.value = null
+    return true
+  }
+  return false
+}
+
+const ensureTargetVideo = async () => {
+  if (!targetVideoId.value || targetResolved.value) return
+  if (resolveTargetFromList()) return
+  try {
+    const { data } = await getVideoDetail(targetVideoId.value)
+    if (data?.code === 200 && data?.data) {
+      const normalized = normalizeVideo(data.data)
+      if (normalized?.id) {
+        const exists = videos.value.some(
+          (item) => String(item?.id) === String(normalized.id)
+        )
+        if (!exists) {
+          videos.value.unshift(normalized)
+        }
+        currentIndex.value = 0
+        targetResolved.value = true
+        targetVideoId.value = null
+      }
+    }
+  } catch (error) {
+    // ignore target load errors
   }
 }
 
@@ -455,6 +497,11 @@ const handleToggleLike = async (video) => {
       video.likeCount = Math.max(0, (video.likeCount || 0) + (nextLiked ? 1 : -1))
     }
   } catch (error) {
+    if (error?.response?.status === 401 || error?.response?.status === 403) {
+      ElMessage.warning('登录已失效，请重新登录')
+      userStore.logout()
+      return
+    }
     ElMessage.error('操作失败，请稍后重试')
   }
 }
@@ -476,6 +523,11 @@ const handleToggleCollect = async (video) => {
       video.collectCount = Math.max(0, (video.collectCount || 0) + (nextCollected ? 1 : -1))
     }
   } catch (error) {
+    if (error?.response?.status === 401 || error?.response?.status === 403) {
+      ElMessage.warning('登录已失效，请重新登录')
+      userStore.logout()
+      return
+    }
     ElMessage.error('操作失败，请稍后重试')
   }
 }
@@ -687,8 +739,14 @@ const toggleFullscreen = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   const restored = hydrateFromCache()
+  const pendingTarget = sessionStorage.getItem('video_feed_target_id')
+  if (pendingTarget) {
+    targetVideoId.value = pendingTarget
+    sessionStorage.removeItem('video_feed_target_id')
+    await ensureTargetVideo()
+  }
   if (!restored || videos.value.length === 0) {
     fetchVideos()
   }
@@ -722,6 +780,17 @@ watch(
     if (length) {
       syncPlayback(currentIndex.value)
       applyInteractionStatus(videos.value[currentIndex.value])
+    }
+    if (targetVideoId.value && !targetResolved.value) {
+      if (!resolveTargetFromList()) {
+        if (hasMore.value && targetAttempts.value < MAX_TARGET_ATTEMPTS) {
+          targetAttempts.value += 1
+          fetchVideos()
+        } else {
+          targetResolved.value = true
+          targetVideoId.value = null
+        }
+      }
     }
   }
 )
@@ -814,7 +883,11 @@ onBeforeUnmount(() => {
           </div>
 
             <div class="player-actions">
-              <button class="action" :class="{ active: video.isLiked }" @click.stop="handleToggleLike(video)">
+              <button
+                class="action action-like"
+                :class="{ active: video.isLiked }"
+                @click.stop="handleToggleLike(video)"
+              >
                 <img src="../assets/img/icon/love.svg" alt="like" />
                 <span>{{ video.likeCount }}</span>
               </button>
@@ -823,7 +896,7 @@ onBeforeUnmount(() => {
                 <span>{{ video.commentCount }}</span>
               </button>
               <button
-                class="action"
+                class="action action-collect"
                 :class="{ active: video.isCollected }"
                 @click.stop="handleToggleCollect(video)"
               >
@@ -889,6 +962,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </aside>
+
   </section>
 </template>
 
@@ -1032,12 +1106,28 @@ onBeforeUnmount(() => {
 }
 
 .action.active {
-  background: rgba(248, 113, 113, 0.25);
+  color: #fff;
+  box-shadow: 0 0 0 1rem rgba(148, 163, 184, 0.2);
+  animation: action-pop 220ms ease;
+}
+
+.action-like.active {
+  background: rgba(244, 63, 94, 0.25);
+  box-shadow: 0 0 0 1rem rgba(244, 63, 94, 0.35);
+}
+
+.action-collect.active {
+  background: rgba(250, 204, 21, 0.2);
+  box-shadow: 0 0 0 1rem rgba(250, 204, 21, 0.35);
   color: #fff;
 }
 
 .action.active img {
   filter: drop-shadow(0 0 6rem rgba(248, 113, 113, 0.6));
+}
+
+.action-collect.active img {
+  filter: drop-shadow(0 0 6rem rgba(250, 204, 21, 0.6));
 }
 
 .action img {
@@ -1333,6 +1423,17 @@ onBeforeUnmount(() => {
   cursor: not-allowed;
 }
 
+@keyframes action-pop {
+  0% {
+    transform: scale(0.98);
+  }
+  60% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
 .feed-container.is-fullscreen {
   background: #000;
 }
