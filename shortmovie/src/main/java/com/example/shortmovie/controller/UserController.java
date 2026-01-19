@@ -4,10 +4,15 @@ import com.example.shortmovie.dto.ChangePasswordDTO;
 import com.example.shortmovie.dto.UserLoginDTO;
 import com.example.shortmovie.dto.UserRegisterDTO;
 import com.example.shortmovie.dto.UserUpdateDTO;
+import com.example.shortmovie.service.CollectService;
+import com.example.shortmovie.service.LikeService;
 import com.example.shortmovie.service.UserService;
+import com.example.shortmovie.service.UserVideoService;
 import com.example.shortmovie.utils.R;
 import com.example.shortmovie.vo.LoginVO;
+import com.example.shortmovie.vo.PageVO;
 import com.example.shortmovie.vo.UserProfileVO;
+import com.example.shortmovie.vo.VideoVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,6 +38,9 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
     
     private final UserService userService;
+    private final UserVideoService userVideoService;
+    private final LikeService likeService;
+    private final CollectService collectService;
     
     /**
      * 用户注册
@@ -191,6 +199,69 @@ public class UserController {
         userService.changePassword(userId, dto);
         
         return R.ok();
+    }
+    
+    /**
+     * 查询我的视频
+     */
+    @Operation(summary = "查询我的视频", description = "查询当前登录用户发布的所有视频，支持按审核状态筛选和分页")
+    @GetMapping("/videos")
+    public R<PageVO<VideoVO>> getUserVideos(
+            @Parameter(description = "审核状态：0-待审核，1-通过，2-驳回")
+            @RequestParam(required = false) Integer auditStatus,
+            
+            @Parameter(description = "页码，默认为1")
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            
+            @Parameter(description = "每页大小，默认为10")
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        
+        Long userId = getCurrentUserId();
+        PageVO<VideoVO> result;
+        
+        if (auditStatus != null) {
+            result = userVideoService.getUserVideoListByStatus(userId, auditStatus, pageNum, pageSize);
+        } else {
+            result = userVideoService.getUserVideoList(userId, pageNum, pageSize);
+        }
+        
+        return R.ok(result);
+    }
+    
+    /**
+     * 查询我的喜欢列表
+     */
+    @Operation(summary = "查询我的喜欢列表", description = "查询当前登录用户点赞的所有视频，按点赞时间倒序排列")
+    @GetMapping("/likes")
+    public R<PageVO<VideoVO>> getUserLikes(
+            @Parameter(description = "页码，默认为1")
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            
+            @Parameter(description = "每页大小，默认为10")
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        
+        Long userId = getCurrentUserId();
+        PageVO<VideoVO> result = likeService.getUserLikeList(userId, pageNum, pageSize);
+        
+        return R.ok(result);
+    }
+    
+    /**
+     * 查询我的收藏列表
+     */
+    @Operation(summary = "查询我的收藏列表", description = "查询当前登录用户收藏的所有视频，按收藏时间倒序排列")
+    @GetMapping("/collects")
+    public R<PageVO<VideoVO>> getUserCollects(
+            @Parameter(description = "页码，默认为1")
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            
+            @Parameter(description = "每页大小，默认为10")
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        
+        Long userId = getCurrentUserId();
+        PageVO<VideoVO> result = collectService.getUserCollectList(userId, pageNum, pageSize);
+        
+        return R.ok(result);
     }
     
     /**

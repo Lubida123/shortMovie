@@ -62,6 +62,7 @@ public class SecurityConfig {
                                 "/api/video/*/detail" // 允许匿名访问视频详情
                         ).permitAll()
                         .requestMatchers("/sendmsg").permitAll()
+                        .requestMatchers("/analysis/movie").permitAll()
                         // 其他请求需要认证
                         .anyRequest().authenticated()
                 )
