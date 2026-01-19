@@ -12,7 +12,7 @@ import java.io.InputStreamReader;
 @RestController
 public class AnalysisController {
     // 替换成你自己的 Spark 安装路径（bin 目录下的 spark-submit.cmd）
-    private static final String SPARK_SUBMIT_PATH = "D:\\spark\\bin\\spark-submit.cmd";
+    private static final String SPARK_SUBMIT_PATH = "F:\\spark\\bin\\spark-submit.cmd";
     //这是接口地址：http://localhost:8080/analysis/movie
     @Scheduled(cron = "0 0 2 * * *") //当程序运行的情况下，每日2点会运行该方法
     @GetMapping("/movie")
