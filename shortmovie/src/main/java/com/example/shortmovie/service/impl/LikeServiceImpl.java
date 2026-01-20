@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,9 +38,13 @@ public class LikeServiceImpl implements LikeService {
     private final UserLikeMapper userLikeMapper;
     private final VideoMapper videoMapper;
     private final KafkaMessageProducer kafkaMessageProducer;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @Autowired(required = false)
     private FileStorageService fileStorageService;
+    
+    // Redis缓存Key前缀
+    private static final String VIDEO_DETAIL_CACHE_PREFIX = "video:detail:";
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -114,6 +119,9 @@ public class LikeServiceImpl implements LikeService {
             log.warn("发送点赞行为记录到Kafka失败: userId={}, videoId={}, error={}", userId, videoId, e.getMessage());
             // Kafka失败不影响用户操作
         }
+        
+        // 删除视频详情缓存（点赞数已更新）
+        invalidateVideoDetailCache(videoId);
 
         // 构建响应
         LikeStatusVO response = new LikeStatusVO();
@@ -121,6 +129,19 @@ public class LikeServiceImpl implements LikeService {
         response.setLikeCount(video.getLikeCount());
 
         return response;
+    }
+    
+    /**
+     * 删除视频详情缓存
+     */
+    private void invalidateVideoDetailCache(Long videoId) {
+        try {
+            String cacheKey = VIDEO_DETAIL_CACHE_PREFIX + videoId;
+            redisTemplate.delete(cacheKey);
+            log.debug("Video detail cache invalidated after like action: videoId={}", videoId);
+        } catch (Exception e) {
+            log.warn("Failed to invalidate video detail cache: videoId={}, error={}", videoId, e.getMessage());
+        }
     }
 
     @Override

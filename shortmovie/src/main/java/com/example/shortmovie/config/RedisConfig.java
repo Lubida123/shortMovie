@@ -9,9 +9,8 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 /**
  * Redis 配置
- * 暂时禁用，后续任务会启用
  */
-//@Configuration
+@Configuration
 public class RedisConfig {
     
     @Bean
