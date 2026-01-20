@@ -1478,6 +1478,8 @@ onBeforeUnmount(() => {
   padding: 14rem 20rem;
   display: grid;
   gap: 16rem;
+  align-content: start;
+  grid-auto-rows: max-content;
 }
 
 .comment-state {
