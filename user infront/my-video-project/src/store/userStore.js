@@ -31,12 +31,19 @@ export const useUserStore = defineStore('user', {
   },
   actions: {
     async login(form) {
-      const { data } = await userApi.login(form)
-      if (data?.code === 200) {
-        this.token = data?.data?.token || ''
-        writeStorage({ token: this.token, userInfo: this.userInfo })
-        await this.fetchProfile()
-        return data?.data || null
+      try {
+        const { data } = await userApi.login(form)
+        if (data?.code === 200) {
+          this.token = data?.data?.token || ''
+          writeStorage({ token: this.token, userInfo: this.userInfo })
+          await this.fetchProfile()
+          return data?.data || null
+        }
+      } catch (error) {
+        const status = error?.response?.status
+        if (status === 401 || status === 403) {
+          this.clearAuth()
+        }
       }
       return null
     },
@@ -44,11 +51,18 @@ export const useUserStore = defineStore('user', {
       if (!this.token) {
         return null
       }
-      const { data } = await userApi.getProfile()
-      if (data?.code === 200) {
-        this.userInfo = data?.data || null
-        writeStorage({ token: this.token, userInfo: this.userInfo })
-        return data?.data || null
+      try {
+        const { data } = await userApi.getProfile()
+        if (data?.code === 200) {
+          this.userInfo = data?.data || null
+          writeStorage({ token: this.token, userInfo: this.userInfo })
+          return data?.data || null
+        }
+      } catch (error) {
+        const status = error?.response?.status
+        if (status === 401 || status === 403) {
+          this.clearAuth()
+        }
       }
       return null
     },

@@ -11,6 +11,7 @@ import {
   toggleCollect,
   getInteractionStatus,
 } from '../api/video'
+import { getVideoComments, createComment } from '../api/comment'
 
 const emit = defineEmits(['load-more', 'comment-like', 'comment-reply'])
 const router = useRouter()
@@ -43,53 +44,13 @@ const newComment = ref('')
 const replyTo = ref(null)
 const defaultAvatar = new URL('../assets/img/avatar.png', import.meta.url).href
 const playStates = new Map()
-const mockComments = ref([
-  {
-    id: 1,
-    user: '梦玉',
-    content: '谁需要流星？我去炸。',
-    time: '3周前 · 福建',
-    likes: 17,
-    liked: false,
-    avatar: defaultAvatar,
-  },
-  {
-    id: 2,
-    user: '方圆脸看了一直在哭',
-    content: '今天的风也太温柔了。',
-    time: '3周前 · 湖南',
-    likes: 3971,
-    liked: false,
-    avatar: defaultAvatar,
-  },
-  {
-    id: 3,
-    user: '小唐总划水',
-    content: '我要去新疆滑雪了。',
-    time: '3周前 · 上海',
-    likes: 48,
-    liked: false,
-    avatar: defaultAvatar,
-  },
-  {
-    id: 4,
-    user: '顿哥哥',
-    content: '看到这里就会想起以前。',
-    time: '4天前 · 河南',
-    likes: 1,
-    liked: false,
-    avatar: defaultAvatar,
-  },
-  {
-    id: 5,
-    user: '远没醒醒',
-    content: '漂亮的眼睛清澈幸福。',
-    time: '1天前 · 广东',
-    likes: 6,
-    liked: false,
-    avatar: defaultAvatar,
-  },
-])
+const commentsByVideo = ref({})
+const commentPageByVideo = ref({})
+const commentHasMoreByVideo = ref({})
+const commentLoadingByVideo = ref({})
+const commentErrorByVideo = ref({})
+const commentSending = ref(false)
+const commentPageSize = 10
 let switchTimer = null
 const targetVideoId = ref(null)
 const targetResolved = ref(false)
@@ -101,8 +62,31 @@ const wrapperStyle = computed(() => ({
 }))
 
 const currentVideo = computed(() => videos.value[currentIndex.value] || null)
-const currentComments = computed(() => mockComments.value)
-const commentCount = computed(() => currentVideo.value?.commentCount ?? currentComments.value.length)
+const currentVideoId = computed(() => currentVideo.value?.id ?? null)
+const currentComments = computed(() => {
+  const id = currentVideoId.value
+  if (!id) return []
+  return commentsByVideo.value[id] || []
+})
+const currentCommentLoading = computed(() => {
+  const id = currentVideoId.value
+  return id ? Boolean(commentLoadingByVideo.value[id]) : false
+})
+const currentCommentError = computed(() => {
+  const id = currentVideoId.value
+  return id ? commentErrorByVideo.value[id] || '' : ''
+})
+const currentCommentHasMore = computed(() => {
+  const id = currentVideoId.value
+  if (!id) return false
+  const hasMoreValue = commentHasMoreByVideo.value[id]
+  return hasMoreValue === undefined ? true : Boolean(hasMoreValue)
+})
+const commentCount = computed(() => {
+  const count = currentVideo.value?.commentCount
+  if (Number.isFinite(count)) return count
+  return currentComments.value.length
+})
 
 const formatDuration = (seconds) => {
   const value = Number(seconds)
@@ -110,6 +94,34 @@ const formatDuration = (seconds) => {
   const m = Math.floor(safe / 60).toString().padStart(2, '0')
   const s = Math.floor(safe % 60).toString().padStart(2, '0')
   return `${m}:${s}`
+}
+
+const formatCommentTime = (value) => {
+  if (!value) return '刚刚'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  const diff = Date.now() - date.getTime()
+  if (diff < 60 * 1000) return '刚刚'
+  if (diff < 60 * 60 * 1000) return `${Math.floor(diff / 60000)}分钟前`
+  if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / 3600000)}小时前`
+  const day = `${date.getMonth() + 1}`.padStart(2, '0')
+  const dateText = `${date.getFullYear()}-${day}-${`${date.getDate()}`.padStart(2, '0')}`
+  return dateText
+}
+
+const mapCommentVO = (item) => {
+  if (!item) return null
+  const replies = Array.isArray(item.replies) ? item.replies : []
+  return {
+    id: item.id ?? item.commentId,
+    user: item.userName || item.nickname || '用户',
+    avatar: item.userAvatar || defaultAvatar,
+    content: item.content || '',
+    time: formatCommentTime(item.createTime),
+    likes: item.likeCount ?? 0,
+    liked: item.isLiked ?? false,
+    replies: replies.map(mapCommentVO).filter(Boolean),
+  }
 }
 
 const normalizeVideo = (item) => {
@@ -143,6 +155,24 @@ const extractPageList = (payload) => {
   const pageData = payload?.data ?? payload
   const list = pageData?.records ?? pageData?.list ?? []
   return Array.isArray(list) ? list : []
+}
+
+const ensureCommentState = (videoId) => {
+  if (!commentsByVideo.value[videoId]) {
+    commentsByVideo.value[videoId] = []
+  }
+  if (!commentPageByVideo.value[videoId]) {
+    commentPageByVideo.value[videoId] = 1
+  }
+  if (commentHasMoreByVideo.value[videoId] === undefined) {
+    commentHasMoreByVideo.value[videoId] = true
+  }
+  if (!commentLoadingByVideo.value[videoId]) {
+    commentLoadingByVideo.value[videoId] = false
+  }
+  if (!commentErrorByVideo.value[videoId]) {
+    commentErrorByVideo.value[videoId] = ''
+  }
 }
 
 const hasSignedUrl = (list) =>
@@ -589,8 +619,73 @@ const handleSeekStart = (index, event) => {
   window.addEventListener('pointerup', handleSeekEnd)
 }
 
+const fetchComments = async (videoId, options = {}) => {
+  if (!videoId) return
+  ensureCommentState(videoId)
+  if (commentLoadingByVideo.value[videoId]) return
+  if (!options.reset && commentHasMoreByVideo.value[videoId] === false) return
+
+  commentLoadingByVideo.value[videoId] = true
+  commentErrorByVideo.value[videoId] = ''
+  if (options.reset) {
+    commentPageByVideo.value[videoId] = 1
+    commentHasMoreByVideo.value[videoId] = true
+  }
+
+  const pageNumValue = commentPageByVideo.value[videoId] || 1
+  try {
+    const { data } = await getVideoComments(videoId, {
+      pageNum: pageNumValue,
+      pageSize: commentPageSize,
+    })
+    if (data?.code !== undefined && data?.code !== 200) {
+      commentErrorByVideo.value[videoId] = data?.message || '评论加载失败'
+      return
+    }
+    const list = extractPageList(data).map(mapCommentVO).filter(Boolean)
+    const existing = options.reset ? [] : commentsByVideo.value[videoId] || []
+    const merged = [...existing]
+    const idSet = new Set(existing.map((item) => String(item.id)))
+    list.forEach((item) => {
+      const key = String(item.id)
+      if (!idSet.has(key)) {
+        idSet.add(key)
+        merged.push(item)
+      }
+    })
+    commentsByVideo.value[videoId] = merged
+
+    const pageData = data?.data ?? data
+    const pageNum = pageData?.pageNum ?? pageNumValue
+    const totalPages = pageData?.pages
+    const totalCount = pageData?.total
+    let hasMoreValue = true
+    if (typeof totalPages === 'number') {
+      hasMoreValue = pageNum < totalPages
+    } else if (typeof totalCount === 'number') {
+      hasMoreValue = merged.length < totalCount
+    } else {
+      hasMoreValue = list.length >= commentPageSize
+    }
+    commentHasMoreByVideo.value[videoId] = hasMoreValue
+    commentPageByVideo.value[videoId] = pageNum + 1
+  } catch (error) {
+    commentErrorByVideo.value[videoId] = '评论加载失败'
+  } finally {
+    commentLoadingByVideo.value[videoId] = false
+  }
+}
+
+const loadMoreComments = async () => {
+  if (!currentVideoId.value) return
+  await fetchComments(currentVideoId.value)
+}
+
 const toggleComments = () => {
   showComments.value = !showComments.value
+  if (showComments.value && currentVideoId.value) {
+    fetchComments(currentVideoId.value, { reset: true })
+  }
 }
 
 const closeComments = () => {
@@ -623,26 +718,67 @@ const toggleCommentLike = (comment) => {
 
 const canSend = computed(() => newComment.value.trim().length > 0)
 
-const sendComment = () => {
-  if (!canSend.value) return
-  mockComments.value.unshift({
-    id: Date.now(),
-    user: '我',
-    content: newComment.value.trim(),
-    time: '刚刚',
-    likes: 0,
-    liked: false,
-    avatar: defaultAvatar,
-  })
-  if (currentVideo.value) {
-    if (Number.isFinite(currentVideo.value.commentCount)) {
-      currentVideo.value.commentCount += 1
-    } else {
-      currentVideo.value.commentCount = currentComments.value.length
+const sendComment = async () => {
+  if (!canSend.value || !currentVideoId.value) return
+  if (!ensureAuth()) return
+  if (commentSending.value) return
+  commentSending.value = true
+  try {
+    const payload = {
+      videoId: currentVideoId.value,
+      content: newComment.value.trim(),
     }
+    if (replyTo.value?.id) {
+      payload.parentId = replyTo.value.id
+    }
+    const { data } = await createComment(payload)
+    if (data?.code !== undefined && data?.code !== 200) {
+      ElMessage.error(data?.message || '评论发送失败')
+      return
+    }
+    let created = mapCommentVO(data?.data)
+    if (!created) {
+      created = {
+        id: `local-${Date.now()}`,
+        user: userStore.userInfo?.nickname || '我',
+        avatar: userStore.userInfo?.avatar || defaultAvatar,
+        content: payload.content,
+        time: '刚刚',
+        likes: 0,
+        liked: false,
+        replies: [],
+      }
+    }
+    ensureCommentState(currentVideoId.value)
+    if (replyTo.value?.id) {
+      const parent = commentsByVideo.value[currentVideoId.value].find(
+        (item) => item.id === replyTo.value.id
+      )
+      if (parent) {
+        if (!Array.isArray(parent.replies)) {
+          parent.replies = []
+        }
+        parent.replies.unshift(created)
+      } else {
+        commentsByVideo.value[currentVideoId.value].unshift(created)
+      }
+    } else {
+      commentsByVideo.value[currentVideoId.value].unshift(created)
+    }
+    if (currentVideo.value) {
+      if (Number.isFinite(currentVideo.value.commentCount)) {
+        currentVideo.value.commentCount += 1
+      } else {
+        currentVideo.value.commentCount = commentsByVideo.value[currentVideoId.value].length
+      }
+    }
+    newComment.value = ''
+    replyTo.value = null
+  } catch (error) {
+    ElMessage.error('评论发送失败')
+  } finally {
+    commentSending.value = false
   }
-  newComment.value = ''
-  replyTo.value = null
 }
 
 const loadMoreIfNeeded = async () => {
@@ -771,6 +907,7 @@ watch(
     showComments.value = false
     replyTo.value = null
     newComment.value = ''
+    commentSending.value = false
   }
 )
 
@@ -925,25 +1062,69 @@ onBeforeUnmount(() => {
         <button class="comment-close" @click="closeComments">×</button>
       </div>
       <div class="comment-list">
-        <div v-for="item in currentComments" :key="item.id" class="comment-item">
-          <img class="comment-avatar" :src="item.avatar" alt="avatar" />
-          <div class="comment-body">
-            <div class="comment-name">{{ item.user }}</div>
-            <div class="comment-content">{{ item.content }}</div>
-            <div class="comment-meta">
-              <span>{{ item.time }}</span>
-              <button class="comment-action" @click="handleReply(item)">回复</button>
-              <button
-                class="comment-like"
-                :class="{ active: item.liked }"
-                @click="toggleCommentLike(item)"
-              >
-                <img src="../assets/img/icon/love.svg" alt="like" />
-                <span>{{ item.likes }}</span>
-              </button>
+        <div
+          v-if="currentCommentLoading && currentComments.length === 0"
+          class="comment-state"
+        >
+          评论加载中...
+        </div>
+        <div
+          v-else-if="currentCommentError && currentComments.length === 0"
+          class="comment-state"
+        >
+          {{ currentCommentError }}
+        </div>
+        <div v-else-if="currentComments.length === 0" class="comment-state">暂无评论</div>
+        <template v-else>
+          <div v-for="item in currentComments" :key="item.id" class="comment-item">
+            <img class="comment-avatar" :src="item.avatar" alt="avatar" />
+            <div class="comment-body">
+              <div class="comment-name">{{ item.user }}</div>
+              <div class="comment-content">{{ item.content }}</div>
+              <div class="comment-meta">
+                <span>{{ item.time }}</span>
+                <button class="comment-action" @click="handleReply(item)">回复</button>
+                <button
+                  class="comment-like"
+                  :class="{ active: item.liked }"
+                  @click="toggleCommentLike(item)"
+                >
+                  <img src="../assets/img/icon/love.svg" alt="like" />
+                  <span>{{ item.likes }}</span>
+                </button>
+              </div>
+              <div v-if="item.replies && item.replies.length" class="comment-replies">
+                <div v-for="reply in item.replies" :key="reply.id" class="comment-reply-item">
+                  <img class="comment-reply-avatar" :src="reply.avatar" alt="avatar" />
+                  <div class="comment-reply-body">
+                    <div class="comment-reply-name">{{ reply.user }}</div>
+                    <div class="comment-content">{{ reply.content }}</div>
+                    <div class="comment-meta">
+                      <span>{{ reply.time }}</span>
+                      <button class="comment-action" @click="handleReply(reply)">回复</button>
+                      <button
+                        class="comment-like"
+                        :class="{ active: reply.liked }"
+                        @click="toggleCommentLike(reply)"
+                      >
+                        <img src="../assets/img/icon/love.svg" alt="like" />
+                        <span>{{ reply.likes }}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+          <button
+            v-if="currentCommentHasMore"
+            class="comment-load-more"
+            :disabled="currentCommentLoading"
+            @click="loadMoreComments"
+          >
+            {{ currentCommentLoading ? '加载中...' : '加载更多' }}
+          </button>
+        </template>
       </div>
       <div class="comment-compose">
         <div v-if="replyTo" class="comment-replying">
@@ -958,7 +1139,13 @@ onBeforeUnmount(() => {
             placeholder="说点什么…"
             @keydown.enter.exact.prevent="sendComment"
           />
-          <button class="comment-send" :disabled="!canSend" @click="sendComment">发送</button>
+          <button
+            class="comment-send"
+            :disabled="!canSend || commentSending"
+            @click="sendComment"
+          >
+            {{ commentSending ? '发送中...' : '发送' }}
+          </button>
         </div>
       </div>
     </aside>
@@ -1293,6 +1480,13 @@ onBeforeUnmount(() => {
   gap: 16rem;
 }
 
+.comment-state {
+  color: rgba(226, 232, 240, 0.7);
+  font-size: 12rem;
+  text-align: center;
+  padding: 12rem 0;
+}
+
 .comment-item {
   display: flex;
   gap: 12rem;
@@ -1364,6 +1558,52 @@ onBeforeUnmount(() => {
 .comment-like.active img {
   filter: drop-shadow(0 0 6rem rgba(244, 63, 94, 0.6));
   opacity: 1;
+}
+
+.comment-replies {
+  margin-top: 10rem;
+  padding-left: 10rem;
+  border-left: 1rem solid rgba(148, 163, 184, 0.16);
+  display: grid;
+  gap: 10rem;
+}
+
+.comment-reply-item {
+  display: flex;
+  gap: 8rem;
+}
+
+.comment-reply-avatar {
+  width: 26rem;
+  height: 26rem;
+  border-radius: 999rem;
+}
+
+.comment-reply-body {
+  display: grid;
+  gap: 4rem;
+}
+
+.comment-reply-name {
+  font-size: 12rem;
+  font-weight: 600;
+}
+
+.comment-load-more {
+  border: none;
+  border-radius: 999rem;
+  padding: 6rem 12rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: #e2e8f0;
+  font-size: 12rem;
+  cursor: pointer;
+  margin: 0 auto;
+  justify-self: center;
+}
+
+.comment-load-more:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .comment-compose {

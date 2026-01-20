@@ -485,7 +485,7 @@ const handleBack = () => {
     router.back()
     return
   }
-  router.push('/')
+  router.push('/home')
 }
 
 const openWork = (item) => {

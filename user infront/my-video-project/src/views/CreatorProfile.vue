@@ -11,6 +11,7 @@ const defaultAvatar = new URL('../assets/img/avatar.png', import.meta.url).href
 const userStore = useUserStore()
 
 const loadingWorks = ref(false)
+const loadError = ref('')
 
 const creator = ref({
   id: '--',
@@ -68,28 +69,35 @@ const fetchSelfWorks = async (userId) => {
   let pageNum = 1
   let hasMore = true
   const worksMap = new Map()
-  while (hasMore) {
-    const { data } = await userApi.getMyVideos({ pageNum, pageSize })
-    if (data?.code !== 200) break
-    const list = extractPageList(data)
-    if (list.length === 0) break
-    list
-      .map(normalizeWork)
-      .filter(Boolean)
-      .forEach((item) => {
-        if (item?.id !== undefined && item?.id !== null) {
-          worksMap.set(item.id, item)
-        }
-      })
-    const pageData = data?.data ?? data
-    if (typeof pageData?.pages === 'number') {
-      hasMore = pageNum < pageData.pages
-    } else {
-      hasMore = list.length >= pageSize
+  try {
+    while (hasMore) {
+      const { data } = await userApi.getMyVideos({ pageNum, pageSize })
+      if (data?.code !== 200) {
+        loadError.value = data?.message || '作品加载失败'
+        break
+      }
+      const list = extractPageList(data)
+      if (list.length === 0) break
+      list
+        .map(normalizeWork)
+        .filter(Boolean)
+        .forEach((item) => {
+          if (item?.id !== undefined && item?.id !== null) {
+            worksMap.set(item.id, item)
+          }
+        })
+      const pageData = data?.data ?? data
+      if (typeof pageData?.pages === 'number') {
+        hasMore = pageNum < pageData.pages
+      } else {
+        hasMore = list.length >= pageSize
+      }
+      pageNum += 1
     }
-    pageNum += 1
+    creator.value.works = Array.from(worksMap.values())
+  } catch (error) {
+    loadError.value = '作品加载失败，请稍后重试'
   }
-  creator.value.works = Array.from(worksMap.values())
 }
 
 const loadCreator = () => {
@@ -125,6 +133,7 @@ const loadCreator = () => {
 const fetchUserWorks = async (userId) => {
   if (!userId) return
   loadingWorks.value = true
+  loadError.value = ''
   try {
     const currentId = userStore.userInfo?.id ?? userStore.userInfo?.userId
     if (currentId && String(currentId) === String(userId)) {
@@ -151,17 +160,20 @@ const fetchUserWorks = async (userId) => {
         pageSize,
         authorId: userId,
       })
-      if (data?.code !== 200) break
+      if (data?.code !== 200) {
+        loadError.value = data?.message || '作品加载失败'
+        break
+      }
       const list = extractPageList(data)
       if (list.length === 0) break
       list
         .map(normalizeWork)
         .filter(Boolean)
         .forEach((item) => {
-        if (item?.id !== undefined && item?.id !== null) {
-          worksMap.set(item.id, item)
-        }
-      })
+          if (item?.id !== undefined && item?.id !== null) {
+            worksMap.set(item.id, item)
+          }
+        })
       const pageData = data?.data ?? data
       if (typeof pageData?.pages === 'number') {
         hasMore = pageNum < pageData.pages
@@ -171,6 +183,8 @@ const fetchUserWorks = async (userId) => {
       pageNum += 1
     }
     creator.value.works = Array.from(worksMap.values())
+  } catch (error) {
+    loadError.value = '作品加载失败，请稍后重试'
   } finally {
     loadingWorks.value = false
   }
@@ -230,6 +244,7 @@ watch(
           <span class="section-tip">{{ works.length }} 条</span>
         </div>
         <div v-if="loadingWorks" class="works-empty">加载中...</div>
+        <div v-else-if="loadError" class="works-empty">{{ loadError }}</div>
         <div v-else-if="works.length === 0" class="works-empty">暂无作品</div>
         <div v-else class="works-grid">
           <article v-for="item in works" :key="item.id" class="work-card" @click="openWork(item)">
