@@ -8,6 +8,7 @@
     "echarts": "^6.0.0",
     "element-plus": "^2.4.0",
     "less": "^4.2.0",
+    "lodash-es": "^4.17.22",
     "vue": "^3.3.0",
     "vue-echarts": "^8.0.1",
     "vue-router": "^4.2.0"

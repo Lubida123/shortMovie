@@ -337,16 +337,141 @@ if (config.url.includes('/data/interaction')) {
 
     // ==================== 用户管理相关接口 ====================
     
-    // 获取用户列表
-    if (config.url.includes('/user/list')) {
-      return Promise.reject({
-        mock: true,
-        data: {
-          list: mockUsers,
-          total: mockUsers.length
-        }
-      })
+    
+
+// 获取管理员列表
+if (config.url.includes('/admin/list')) {
+  const params = config.params || {}
+  const keyword = params.keyword || ''
+  
+  // 筛选管理员
+  let adminUsers = mockUsers.filter(user => user.role === 'admin')
+  
+  // 应用关键词筛选
+  if (keyword) {
+    const keywordLower = keyword.toLowerCase()
+    adminUsers = adminUsers.filter(user => 
+      user.username.toLowerCase().includes(keywordLower) || 
+      user.phone.includes(keyword)
+    )
+  }
+  
+  // 分页逻辑
+  const page = params.pageNum || 1
+  const pageSize = params.pageSize || 10
+  const startIndex = (page - 1) * pageSize
+  const endIndex = startIndex + pageSize
+  
+  return Promise.reject({
+    mock: true,
+    data: {
+      list: adminUsers.slice(startIndex, endIndex),
+      total: adminUsers.length
     }
+  })
+}
+
+// 获取普通用户列表
+if (config.url.includes('/user/list')) {
+  const params = config.params || {}
+  const keyword = params.keyword || ''
+  
+  // 筛选普通用户
+  let normalUsers = mockUsers.filter(user => user.role === 'user')
+  
+  // 应用关键词筛选
+  if (keyword) {
+    const keywordLower = keyword.toLowerCase()
+    normalUsers = normalUsers.filter(user => 
+      user.username.toLowerCase().includes(keywordLower) || 
+      user.phone.includes(keyword)
+    )
+  }
+  
+  // 分页逻辑
+  const page = params.pageNum || 1
+  const pageSize = params.pageSize || 10
+  const startIndex = (page - 1) * pageSize
+  const endIndex = startIndex + pageSize
+  
+  return Promise.reject({
+    mock: true,
+    data: {
+      list: normalUsers.slice(startIndex, endIndex),
+      total: normalUsers.length
+    }
+  })
+}
+
+// 管理员相关操作接口
+if (config.url.includes('/admin/add') && config.method === 'post') {
+  const newUser = {
+    ...config.data,
+    id: mockUsers.length > 0 ? Math.max(...mockUsers.map(u => u.id)) + 1 : 1,
+    role: 'admin',
+    createTime: new Date().toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    }).replace(/\//g, '-')
+  }
+  
+  mockUsers.unshift(newUser)
+  
+  return Promise.reject({
+    mock: true,
+    data: {
+      success: true,
+      message: '管理员创建成功',
+      data: newUser
+    }
+  })
+}
+
+if (config.url.includes('/admin/edit') && config.method === 'put') {
+  const userData = config.data
+  const index = mockUsers.findIndex(u => u.id === userData.id && u.role === 'admin')
+  
+  if (index !== -1) {
+    mockUsers[index] = { ...mockUsers[index], ...userData }
+    
+    return Promise.reject({
+      mock: true,
+      data: {
+        success: true,
+        message: '管理员信息更新成功',
+        data: mockUsers[index]
+      }
+    })
+  }
+  
+  return Promise.reject({
+    mock: true,
+    data: {
+      success: false,
+      message: '管理员不存在'
+    }
+  })
+}
+
+if (config.url.includes('/admin/delete/') && config.method === 'delete') {
+  const id = parseInt(config.url.split('/').pop())
+  const originalLength = mockUsers.length
+  
+  mockUsers = mockUsers.filter(user => !(user.id === id && user.role === 'admin'))
+  
+  return Promise.reject({
+    mock: true,
+    data: {
+      success: originalLength !== mockUsers.length,
+      message: originalLength !== mockUsers.length ? '管理员删除成功' : '管理员不存在'
+    }
+  })
+}
+
 
     // 新增用户
     if (config.url.includes('/user/add') && config.method === 'post') {

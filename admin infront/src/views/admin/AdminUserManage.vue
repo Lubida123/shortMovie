@@ -6,48 +6,79 @@
         v-model="searchKeyword" 
         placeholder="请输入用户名/手机号搜索" 
         class="search-input"
-        @keyup.enter="fetchUserList"
+        @keyup.enter="handleSearch"
+        @input="handleSearchInput"
       >
         <template #prefix>
           <el-icon><Search /></el-icon>
         </template>
       </el-input>
-      <el-button type="primary" :icon="CirclePlus" @click="handleAddUser">新增用户</el-button>
-      <el-button type="warning" :icon="Refresh" @click="fetchUserList">刷新列表</el-button>
+      
+      <!-- 用户类型切换按钮组 -->
+      <div class="user-type-buttons">
+        <el-button 
+          :type="activeUserType === 'all' ? 'primary' : 'default'"
+          @click="switchUserType('all')"
+          class="user-type-btn"
+          :loading="loading && activeUserType === 'all'"
+        >
+          全部用户
+        </el-button>
+        <el-button 
+          :type="activeUserType === 'user' ? 'primary' : 'default'"
+          @click="switchUserType('user')"
+          class="user-type-btn"
+          :loading="loading && activeUserType === 'user'"
+        >
+          普通用户
+        </el-button>
+        <el-button 
+          :type="activeUserType === 'admin' ? 'primary' : 'default'"
+          @click="switchUserType('admin')"
+          class="user-type-btn"
+          :loading="loading && activeUserType === 'admin'"
+        >
+          管理员
+        </el-button>
+      </div>
+      
+      <el-button type="primary" :icon="CirclePlus" @click="handleAddUser" :loading="savingUser">新增用户</el-button>
+      <el-button type="warning" :icon="Refresh" @click="fetchUserList" :loading="loading">刷新列表</el-button>
     </div>
 
     <!-- 用户列表 -->
     <div class="table-wrapper">
       <el-table 
-        :data="filteredUserList" 
+        :data="userList" 
         border 
         stripe 
         class="user-table"
         v-loading="loading"
         height="calc(100vh - 280px)"
+        @sort-change="handleSortChange"
       >
-        <el-table-column prop="id" label="用户ID" width="100" align="center" />
-        <el-table-column prop="username" label="用户名" min-width="120" />
+        <el-table-column prop="id" label="用户ID" width="100" align="center" sortable="custom" />
+        <el-table-column prop="username" label="用户名" min-width="120" sortable="custom" />
         <el-table-column prop="phone" label="手机号" min-width="130">
           <template #default="scope">
             <span class="phone-number">{{ formatPhoneNumber(scope.row.phone) }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="role" label="用户角色" min-width="100">
+        <el-table-column prop="role" label="用户角色" min-width="100" sortable="custom">
           <template #default="scope">
             <el-tag class="role-tag" :type="scope.row.role === 'admin' ? 'danger' : 'success'">
               {{ getRoleName(scope.row.role) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="账号状态" min-width="100">
+        <el-table-column prop="status" label="账号状态" min-width="100" sortable="custom">
           <template #default="scope">
             <el-tag class="status-tag" :type="scope.row.status === 'active' ? 'success' : 'info'">
               {{ getStatusName(scope.row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" min-width="180" />
+        <el-table-column prop="createTime" label="创建时间" min-width="180" sortable="custom" />
         <el-table-column label="操作" min-width="200" fixed="right">
           <template #default="scope">
             <div class="action-buttons">
@@ -57,6 +88,7 @@
                 @click="handleEditUser(scope.row)"
                 :icon="Edit"
                 class="action-btn"
+                :disabled="scope.row.role === 'admin' && !hasAdminPrivilege()"
               >
                 编辑
               </el-button>
@@ -66,6 +98,7 @@
                 @click="handleChangeStatus(scope.row)"
                 :icon="scope.row.status === 'active' ? Lock : Unlock"
                 class="action-btn"
+                :disabled="scope.row.role === 'admin' && !hasAdminPrivilege()"
               >
                 {{ scope.row.status === 'active' ? '禁用' : '启用' }}
               </el-button>
@@ -75,7 +108,7 @@
                 @click="handleDeleteUser(scope.row)"
                 :icon="Delete"
                 class="action-btn"
-                v-if="scope.row.role !== 'admin'"
+                :disabled="scope.row.role === 'admin'"
               >
                 删除
               </el-button>
@@ -95,6 +128,7 @@
         :page-size="pagination.pageSize"
         layout="total, sizes, prev, pager, next, jumper"
         :total="pagination.total"
+        :disabled="loading"
       />
     </div>
 
@@ -104,6 +138,7 @@
       :title="isEditMode ? '编辑用户' : '新增用户'" 
       width="500px"
       :before-close="handleDialogClose"
+      @closed="resetForm"
     >
       <el-form
         ref="userFormRef"
@@ -117,6 +152,7 @@
             v-model="userForm.username" 
             placeholder="请输入用户名" 
             class="form-input"
+            :disabled="isEditMode && userForm.role === 'admin'"
           >
             <template #prefix>
               <el-icon><User /></el-icon>
@@ -140,6 +176,7 @@
             v-model="userForm.role" 
             placeholder="请选择角色" 
             class="form-select"
+            :disabled="isEditMode && userForm.role === 'admin'"
           >
             <el-option label="普通用户" value="user" />
             <el-option label="管理员" value="admin" />
@@ -182,7 +219,7 @@
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="handleDialogClose">取消</el-button>
+          <el-button @click="handleDialogClose" :disabled="savingUser">取消</el-button>
           <el-button type="primary" @click="handleSaveUser" :loading="savingUser">
             {{ isEditMode ? '更新' : '创建' }}
           </el-button>
@@ -193,7 +230,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Search, 
@@ -208,12 +245,15 @@ import {
   InfoFilled
 } from '@element-plus/icons-vue'
 import { 
-  getUserList as apiGetUserList,
-  addUser as apiAddUser,
-  editUser as apiEditUser,
-  deleteUser as apiDeleteUser,
-  changeUserStatus as apiChangeUserStatus
+  getAdminList,
+  getUserList,
+  addUser,
+  editUser,
+  deleteUser,
+  changeUserStatus
 } from '@/api/admin/userApi'
+import { getAdminUserInfo, hasAdminPermission } from '@/utils/adminAuth'
+import { debounce } from 'lodash-es'
 
 // 加载状态
 const loading = ref(false)
@@ -222,8 +262,23 @@ const savingUser = ref(false)
 // 搜索关键词
 const searchKeyword = ref('')
 
+// 用户类型过滤
+const activeUserType = ref('all') // 'all', 'user', 'admin'
+
 // 用户列表数据
 const userList = ref([])
+
+// 排序配置
+const sortConfig = ref({
+  prop: 'id',
+  order: 'descending' // 'ascending' 或 'descending'
+})
+
+// 缓存数据
+const cacheData = reactive({
+  admin: { list: [], total: 0, timestamp: 0, keyword: '' },
+  user: { list: [], total: 0, timestamp: 0, keyword: '' }
+})
 
 // 分页参数
 const pagination = ref({
@@ -257,6 +312,20 @@ const statusMap = {
   'disabled': '禁用'
 }
 
+// 缓存配置
+const CACHE_DURATION = 5 * 60 * 1000 // 5分钟缓存
+
+// 防抖搜索
+const debouncedSearch = debounce(() => {
+  fetchUserList()
+}, 500)
+
+// 检查是否有管理员权限
+const hasAdminPrivilege = () => {
+  const userInfo = getAdminUserInfo()
+  return userInfo && (userInfo.role === 'admin' || hasAdminPermission('admin:manage'))
+}
+
 // 获取角色名称
 const getRoleName = (role) => {
   return roleMap[role] || role
@@ -273,98 +342,255 @@ const formatPhoneNumber = (phone) => {
   return phone.replace(/(\d{3})(\d{4})(\d{4})/, '$1 **** $3')
 }
 
-// 过滤用户列表（搜索功能）
-const filteredUserList = computed(() => {
-  if (!searchKeyword.value) {
-    return userList.value
+// 检查缓存
+const getCachedData = (type, keyword) => {
+  const cache = cacheData[type]
+  if (cache && 
+      Date.now() - cache.timestamp < CACHE_DURATION && 
+      cache.keyword === keyword) {
+    return { list: [...cache.list], total: cache.total }
   }
-  
-  const keyword = searchKeyword.value.toLowerCase()
-  return userList.value.filter(user => 
-    user.username.toLowerCase().includes(keyword) || 
-    user.phone.includes(keyword)
-  )
-})
+  return null
+}
 
-// 表单校验规则
-const userFormRules = ref({
-  username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 2, max: 20, message: '用户名长度在 2 到 20 个字符', trigger: 'blur' }
-  ],
-  phone: [
-    { required: true, message: '请输入手机号', trigger: 'blur' },
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的11位手机号', trigger: 'blur' }
-  ],
-  role: [{ required: true, message: '请选择用户角色', trigger: 'change' }],
-  status: [{ required: true, message: '请选择账号状态', trigger: 'change' }],
-  password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, max: 20, message: '密码长度在 6 到 20 个字符', trigger: 'blur' }
-  ]
-})
+// 更新缓存
+const updateCache = (type, keyword, data) => {
+  cacheData[type] = {
+    list: [...data.list],
+    total: data.total,
+    timestamp: Date.now(),
+    keyword
+  }
+}
+
+// 清除缓存
+const clearCache = (type) => {
+  if (type) {
+    cacheData[type] = { list: [], total: 0, timestamp: 0, keyword: '' }
+  } else {
+    cacheData.admin = { list: [], total: 0, timestamp: 0, keyword: '' }
+    cacheData.user = { list: [], total: 0, timestamp: 0, keyword: '' }
+  }
+}
+
+// 切换用户类型
+const switchUserType = (type) => {
+  activeUserType.value = type
+  // 重置到第一页
+  pagination.value.pageNum = 1
+  fetchUserList()
+}
+
+// 处理搜索输入
+const handleSearchInput = () => {
+  pagination.value.pageNum = 1
+  debouncedSearch()
+}
+
+// 处理搜索（回车键）
+const handleSearch = () => {
+  pagination.value.pageNum = 1
+  fetchUserList()
+}
+
+// 处理排序
+const handleSortChange = ({ prop, order }) => {
+  sortConfig.value = { prop, order }
+  applySorting()
+}
+
+// 应用排序
+const applySorting = () => {
+  if (!sortConfig.value.prop) return
+  
+  userList.value.sort((a, b) => {
+    const aVal = a[sortConfig.value.prop]
+    const bVal = b[sortConfig.value.prop]
+    
+    if (sortConfig.value.order === 'ascending') {
+      return aVal < bVal ? -1 : aVal > bVal ? 1 : 0
+    } else {
+      return aVal > bVal ? -1 : aVal < bVal ? 1 : 0
+    }
+  })
+}
+
+// 合并数据并排序
+const mergeAndSortData = (adminData, userData) => {
+  const mergedList = [...adminData.list, ...userData.list]
+  
+  // 默认按ID降序排序
+  mergedList.sort((a, b) => b.id - a.id)
+  
+  return {
+    list: mergedList,
+    total: adminData.total + userData.total
+  }
+}
+
+// 本地分页
+const applyLocalPagination = (data) => {
+  const startIndex = (pagination.value.pageNum - 1) * pagination.value.pageSize
+  const endIndex = startIndex + pagination.value.pageSize
+  return data.slice(startIndex, endIndex)
+}
 
 // 获取用户列表
 const fetchUserList = async () => {
   try {
     loading.value = true
-    const res = await apiGetUserList({
-      pageNum: pagination.value.pageNum,
-      pageSize: pagination.value.pageSize,
+    
+    const params = {
       keyword: searchKeyword.value
-    })
-    userList.value = res.list || res // 适配两种格式的返回数据
-    pagination.value.total = res.total || res.length || 0
+    }
+    
+    let result
+    
+    switch (activeUserType.value) {
+      case 'admin':
+        // 检查缓存
+        const cachedAdmin = getCachedData('admin', searchKeyword.value)
+        if (cachedAdmin) {
+          result = cachedAdmin
+        } else {
+          const res = await getAdminList(params)
+          result = {
+            list: res.list || [],
+            total: res.total || 0
+          }
+          updateCache('admin', searchKeyword.value, result)
+        }
+        
+        userList.value = applyLocalPagination(result.list)
+        pagination.value.total = result.total
+        break
+        
+      case 'user':
+        // 检查缓存
+        const cachedUser = getCachedData('user', searchKeyword.value)
+        if (cachedUser) {
+          result = cachedUser
+        } else {
+          const res = await getUserList(params)
+          result = {
+            list: res.list || [],
+            total: res.total || 0
+          }
+          updateCache('user', searchKeyword.value, result)
+        }
+        
+        userList.value = applyLocalPagination(result.list)
+        pagination.value.total = result.total
+        break
+        
+      case 'all':
+        // 检查两个缓存
+        const cachedAdminAll = getCachedData('admin', searchKeyword.value)
+        const cachedUserAll = getCachedData('user', searchKeyword.value)
+        
+        let adminRes, userRes
+        
+        // 并发请求，使用缓存优化
+        if (cachedAdminAll && cachedUserAll) {
+          adminRes = cachedAdminAll
+          userRes = cachedUserAll
+        } else {
+          const promises = []
+          
+          if (!cachedAdminAll) {
+            promises.push(getAdminList(params).then(res => {
+              const data = { list: res.list || [], total: res.total || 0 }
+              updateCache('admin', searchKeyword.value, data)
+              return data
+            }))
+          } else {
+            promises.push(Promise.resolve(cachedAdminAll))
+          }
+          
+          if (!cachedUserAll) {
+            promises.push(getUserList(params).then(res => {
+              const data = { list: res.list || [], total: res.total || 0 }
+              updateCache('user', searchKeyword.value, data)
+              return data
+            }))
+          } else {
+            promises.push(Promise.resolve(cachedUserAll))
+          }
+          
+          [adminRes, userRes] = await Promise.allSettled(promises)
+            .then(results => results.map(r => r.value || r))
+        }
+        
+        // 合并数据
+        const mergedData = mergeAndSortData(adminRes, userRes)
+        userList.value = applyLocalPagination(mergedData.list)
+        pagination.value.total = mergedData.total
+        break
+    }
+    
+    // 应用排序
+    applySorting()
+    
   } catch (error) {
-    // 如果API调用失败，使用本地数据
-    console.log('使用本地数据...')
-    userList.value = [
-      {
-        id: 1,
-        username: '测试用户1',
-        phone: '13800138000',
-        role: 'user',
-        status: 'active',
-        createTime: '2026-01-01 10:00:00'
-      },
-      {
-        id: 2,
-        username: '管理员',
-        phone: '13800138001',
-        role: 'admin',
-        status: 'active',
-        createTime: '2026-01-02 10:00:00'
-      },
-      {
-        id: 3,
-        username: '张三',
-        phone: '13900139000',
-        role: 'user',
-        status: 'disabled',
-        createTime: '2026-01-03 14:30:00'
-      },
-      {
-        id: 4,
-        username: '李四',
-        phone: '13600136000',
-        role: 'user',
-        status: 'active',
-        createTime: '2026-01-04 09:15:00'
-      },
-      {
-        id: 5,
-        username: '王五',
-        phone: '13500135000',
-        role: 'user',
-        status: 'active',
-        createTime: '2026-01-05 16:45:00'
-      }
+    console.error('获取用户列表失败:', error)
+    ElMessage.error('获取用户列表失败，请稍后重试')
+    
+    // 备用：使用本地数据
+    const mockData = [
+      { id: 1, username: '测试用户1', phone: '13800138000', role: 'user', status: 'active', createTime: '2026-01-01 10:00:00' },
+      { id: 2, username: '管理员', phone: '13800138001', role: 'admin', status: 'active', createTime: '2026-01-02 10:00:00' },
+      { id: 3, username: '张三', phone: '13900139000', role: 'user', status: 'disabled', createTime: '2026-01-03 14:30:00' },
+      { id: 4, username: '李四', phone: '13600136000', role: 'user', status: 'active', createTime: '2026-01-04 09:15:00' },
+      { id: 5, username: '王五', phone: '13500135000', role: 'user', status: 'active', createTime: '2026-01-05 16:45:00' },
+      { id: 6, username: '系统管理员', phone: '13800138002', role: 'admin', status: 'active', createTime: '2026-01-06 11:20:00' },
+      { id: 7, username: '赵六', phone: '13700137000', role: 'user', status: 'disabled', createTime: '2026-01-07 15:10:00' }
     ]
-    pagination.value.total = userList.value.length
+    
+    // 应用本地筛选逻辑
+    let filteredData = [...mockData]
+    
+    // 用户类型筛选
+    if (activeUserType.value !== 'all') {
+      filteredData = filteredData.filter(user => user.role === activeUserType.value)
+    }
+    
+    // 关键词筛选
+    if (searchKeyword.value) {
+      const keyword = searchKeyword.value.toLowerCase()
+      filteredData = filteredData.filter(user => 
+        user.username.toLowerCase().includes(keyword) || 
+        user.phone.includes(keyword)
+      )
+    }
+    
+    // 应用排序
+    if (sortConfig.value.prop) {
+      filteredData.sort((a, b) => {
+        const aVal = a[sortConfig.value.prop]
+        const bVal = b[sortConfig.value.prop]
+        
+        if (sortConfig.value.order === 'ascending') {
+          return aVal < bVal ? -1 : aVal > bVal ? 1 : 0
+        } else {
+          return aVal > bVal ? -1 : aVal < bVal ? 1 : 0
+        }
+      })
+    }
+    
+    // 本地分页
+    const startIndex = (pagination.value.pageNum - 1) * pagination.value.pageSize
+    const endIndex = startIndex + pagination.value.pageSize
+    userList.value = filteredData.slice(startIndex, endIndex)
+    pagination.value.total = filteredData.length
   } finally {
     loading.value = false
   }
 }
+
+// 监听搜索关键词变化
+watch(searchKeyword, () => {
+  pagination.value.pageNum = 1
+})
 
 // 分页切换
 const handleSizeChange = (val) => {
@@ -391,10 +617,23 @@ const handleAddUser = () => {
     password: ''
   }
   userDialogVisible.value = true
+  
+  // 清空表单验证
+  nextTick(() => {
+    if (userFormRef.value) {
+      userFormRef.value.clearValidate()
+    }
+  })
 }
 
 // 编辑用户
 const handleEditUser = (row) => {
+  // 检查权限
+  if (row.role === 'admin' && !hasAdminPrivilege()) {
+    ElMessage.warning('您没有权限编辑管理员账户')
+    return
+  }
+  
   isEditMode.value = true
   // 赋值表单（不包含密码）
   userForm.value = {
@@ -406,9 +645,35 @@ const handleEditUser = (row) => {
     password: '' // 编辑时不显示密码
   }
   userDialogVisible.value = true
+  
+  // 清空表单验证
+  nextTick(() => {
+    if (userFormRef.value) {
+      userFormRef.value.clearValidate()
+    }
+  })
 }
 
-// 保存用户（新增/编辑） - 修复后的版本
+// 表单校验规则
+const userFormRules = ref({
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { min: 2, max: 20, message: '用户名长度在 2 到 20 个字符', trigger: 'blur' }
+  ],
+  phone: [
+    { required: true, message: '请输入手机号', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的11位手机号', trigger: 'blur' }
+  ],
+  role: [{ required: true, message: '请选择用户角色', trigger: 'change' }],
+  status: [{ required: true, message: '请选择账号状态', trigger: 'change' }],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 6, max: 20, message: '密码长度在 6 到 20 个字符', trigger: 'blur' },
+    { pattern: /^(?=.*[a-zA-Z])(?=.*\d).{6,20}$/, message: '密码必须包含字母和数字', trigger: 'blur' }
+  ]
+})
+
+// 保存用户（新增/编辑）
 const handleSaveUser = async () => {
   try {
     // 表单验证
@@ -424,11 +689,15 @@ const handleSaveUser = async () => {
       delete submitData.password
       
       // 调用编辑API
-      await apiEditUser(submitData)
+      await editUser(submitData)
       ElMessage.success('用户信息更新成功')
       
-      // 编辑成功后，直接刷新列表，从模拟API获取最新数据
-      fetchUserList()
+      // 清除相关缓存
+      clearCache(submitData.role)
+      if (activeUserType.value === 'all') {
+        clearCache()
+      }
+      
     } else {
       // 新增用户 - 必须包含密码
       if (!submitData.password) {
@@ -438,17 +707,22 @@ const handleSaveUser = async () => {
       }
       
       // 调用新增API
-      await apiAddUser(submitData)
+      await addUser(submitData)
       ElMessage.success('用户创建成功')
       
-      // 新增成功后，重置分页到第一页并刷新列表
-      // 这样可以看到最新添加的用户
-      pagination.value.pageNum = 1
-      fetchUserList()
+      // 清除相关缓存
+      clearCache(submitData.role)
+      if (activeUserType.value === 'all') {
+        clearCache()
+      }
     }
     
     userDialogVisible.value = false
     resetForm()
+    
+    // 刷新列表
+    pagination.value.pageNum = 1
+    fetchUserList()
     
   } catch (error) {
     const errorMsg = isEditMode.value ? '更新用户失败' : '创建用户失败'
@@ -460,6 +734,8 @@ const handleSaveUser = async () => {
 
 // 关闭弹窗
 const handleDialogClose = () => {
+  if (savingUser.value) return
+  
   resetForm()
   userDialogVisible.value = false
 }
@@ -469,10 +745,24 @@ const resetForm = () => {
   if (userFormRef.value) {
     userFormRef.value.resetFields()
   }
+  userForm.value = {
+    id: '',
+    username: '',
+    phone: '',
+    role: 'user',
+    status: 'active',
+    password: ''
+  }
 }
 
-// 变更用户状态 - 修复后的版本
+// 变更用户状态
 const handleChangeStatus = async (row) => {
+  // 检查权限
+  if (row.role === 'admin' && !hasAdminPrivilege()) {
+    ElMessage.warning('您没有权限修改管理员状态')
+    return
+  }
+  
   const newStatus = row.status === 'active' ? 'disabled' : 'active'
   const action = newStatus === 'active' ? '启用' : '禁用'
   
@@ -488,15 +778,23 @@ const handleChangeStatus = async (row) => {
     )
     
     // 调用API
-    await apiChangeUserStatus({
+    await changeUserStatus({
       id: row.id,
+      role: row.role,
       status: newStatus
     })
     
-    // 不再手动更新本地状态，直接刷新列表
+    ElMessage.success(`用户${action}成功`)
+    
+    // 清除缓存
+    clearCache(row.role)
+    if (activeUserType.value === 'all') {
+      clearCache()
+    }
+    
+    // 刷新列表
     fetchUserList()
     
-    ElMessage.success(`用户${action}成功`)
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error(`${action}用户失败`)
@@ -504,11 +802,11 @@ const handleChangeStatus = async (row) => {
   }
 }
 
-// 删除用户 - 修复后的版本
+// 删除用户
 const handleDeleteUser = async (row) => {
-  // 管理员用户不能删除
+  // 管理员用户不能删除（根据业务需求）
   if (row.role === 'admin') {
-    ElMessage.warning('管理员用户不能删除')
+    ElMessage.warning('管理员用户不能删除，如需删除请联系超级管理员')
     return
   }
   
@@ -519,17 +817,30 @@ const handleDeleteUser = async (row) => {
       {
         confirmButtonText: '确定删除',
         cancelButtonText: '取消',
-        type: 'danger'
+        type: 'danger',
+        confirmButtonClass: 'el-button--danger'
       }
     )
     
-    // 调用API
-    await apiDeleteUser(row.id)
-    
-    // 不再手动移除本地数据，直接刷新列表
-    fetchUserList()
+    // 调用删除API
+    await deleteUser(row.id, row.role)
     
     ElMessage.success('用户删除成功')
+    
+    // 清除缓存
+    clearCache(row.role)
+    if (activeUserType.value === 'all') {
+      clearCache()
+    }
+    
+    // 如果当前页没有数据了，跳转到前一页
+    if (userList.value.length === 1 && pagination.value.pageNum > 1) {
+      pagination.value.pageNum -= 1
+    }
+    
+    // 刷新列表
+    fetchUserList()
+    
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error('删除用户失败')
@@ -540,6 +851,12 @@ const handleDeleteUser = async (row) => {
 // 初始化
 onMounted(() => {
   fetchUserList()
+})
+
+// 组件卸载前清理
+import { onUnmounted } from 'vue'
+onUnmounted(() => {
+  debouncedSearch.cancel()
 })
 </script>
 
@@ -590,9 +907,11 @@ onMounted(() => {
   border-radius: 8px;
   border: @dy-border-default;
   flex-shrink: 0;
+  flex-wrap: wrap;
 
   .search-input {
     flex: 1;
+    min-width: 200px;
     max-width: 300px;
     
     :deep(.el-input__wrapper) {
@@ -616,6 +935,106 @@ onMounted(() => {
       
       &::placeholder {
         color: @dy-text-tertiary;
+      }
+    }
+  }
+
+  // 用户类型按钮组
+  .user-type-buttons {
+    display: flex;
+    gap: 8px;
+    margin: 0 8px;
+    
+    .user-type-btn {
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      border-radius: 6px;
+      height: 36px;
+      
+      // 默认状态
+      &:not(.is-primary) {
+        background: @dy-bg-elevated;
+        border-color: @dy-border-default;
+        color: @dy-text-secondary;
+        
+        &:hover {
+          background: rgba(37, 244, 238, 0.1);
+          border-color: rgba(37, 244, 238, 0.3);
+          color: @dy-brand-cyan;
+          transform: translateY(-1px);
+        }
+        
+        &.is-loading {
+          opacity: 0.7;
+          cursor: not-allowed;
+        }
+      }
+      
+      // 选中状态
+      &.is-primary {
+        background: linear-gradient(135deg, @dy-brand-red 0%, #FF375F 100%);
+        border-color: transparent;
+        box-shadow: 0 2px 8px rgba(254, 44, 85, 0.3);
+        
+        &:hover {
+          background: linear-gradient(135deg, #FF375F 0%, @dy-brand-red 100%);
+          box-shadow: 0 4px 12px rgba(254, 44, 85, 0.4);
+          transform: translateY(-1px);
+        }
+        
+        &:active {
+          transform: translateY(0);
+        }
+        
+        &.is-loading {
+          opacity: 0.7;
+          cursor: not-allowed;
+        }
+      }
+    }
+  }
+
+  // 其他按钮样式
+  .el-button {
+    height: 36px;
+    padding: 0 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    
+    &.el-button--primary {
+      background: linear-gradient(135deg, @dy-brand-red 0%, #FF375F 100%);
+      border-color: transparent;
+      
+      &:hover:not(:disabled) {
+        background: linear-gradient(135deg, #FF375F 0%, @dy-brand-red 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(254, 44, 85, 0.3);
+      }
+      
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+    
+    &.el-button--warning {
+      background: rgba(230, 162, 60, 0.1);
+      border-color: rgba(230, 162, 60, 0.3);
+      color: #E6A23C;
+      
+      &:hover:not(:disabled) {
+        background: rgba(230, 162, 60, 0.2);
+        border-color: rgba(230, 162, 60, 0.5);
+        color: #FFD700;
+        transform: translateY(-1px);
+      }
+      
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
       }
     }
   }
@@ -783,13 +1202,18 @@ onMounted(() => {
       gap: 4px;
       transition: all 0.2s ease;
       
-      &:hover {
+      &:hover:not(:disabled) {
         transform: translateY(-1px);
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
       }
       
-      &:active {
+      &:active:not(:disabled) {
         transform: translateY(0);
+      }
+      
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
       }
     }
   }
@@ -818,6 +1242,11 @@ onMounted(() => {
       &:hover:not(:disabled) {
         background-color: rgba(37, 244, 238, 0.1) !important;
       }
+      
+      &:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
     }
     
     .el-pager li {
@@ -825,7 +1254,7 @@ onMounted(() => {
       color: @dy-text-secondary;
       cursor: pointer;
       
-      &:hover {
+      &:not(.disabled):hover {
         color: @dy-brand-cyan !important;
         background-color: rgba(37, 244, 238, 0.1) !important;
       }
@@ -834,6 +1263,11 @@ onMounted(() => {
         background: @dy-brand-red;
         color: white;
         cursor: default;
+      }
+      
+      &.disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
       }
     }
     
@@ -971,6 +1405,26 @@ onMounted(() => {
     
     .search-input {
       max-width: 100%;
+      min-width: auto;
+    }
+    
+    .user-type-buttons {
+      margin: 0;
+      justify-content: center;
+      order: 1;
+      
+      .user-type-btn {
+        flex: 1;
+        min-width: 0;
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+    }
+    
+    .el-button {
+      width: 100%;
+      order: 2;
+      margin-top: 4px;
     }
   }
   
@@ -1002,12 +1456,40 @@ onMounted(() => {
 }
 
 @media (min-width: 769px) and (max-width: 1024px) {
+  .operation-bar {
+    .search-input {
+      max-width: 250px;
+    }
+    
+    .user-type-buttons {
+      margin: 0 4px;
+      
+      .user-type-btn {
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+    }
+  }
+  
   .action-buttons {
     flex-direction: column;
     gap: 6px;
     
     .action-btn {
       width: 100%;
+    }
+  }
+}
+
+// 大屏幕优化
+@media (min-width: 1200px) {
+  .operation-bar {
+    .search-input {
+      max-width: 350px;
+    }
+    
+    .user-type-buttons {
+      margin: 0 16px;
     }
   }
 }
