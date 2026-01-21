@@ -502,7 +502,7 @@ public class VideoServiceImpl implements VideoService {
             try {
                 // 注入HeatScoreService（通过ApplicationContext获取）
                 com.example.shortmovie.service.HeatScoreService heatScoreService = 
-                    org.springframework.context.ApplicationContextProvider.getApplicationContext()
+                    com.example.shortmovie.config.ApplicationContextProvider.getApplicationContext()
                         .getBean(com.example.shortmovie.service.HeatScoreService.class);
                 
                 heatScoreService.updateVideoHeatScore(videoId);

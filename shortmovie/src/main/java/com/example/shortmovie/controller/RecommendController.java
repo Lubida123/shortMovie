@@ -130,4 +130,22 @@ public class RecommendController {
             return R.error(500, "获取混合推荐失败");
         }
     }
+    
+    @Operation(summary = "获取热门视频", description = "获取热门视频列表，不需要登录")
+    @GetMapping("/hot")
+    public R<List<VideoVO>> getHotVideos(
+            @Parameter(description = "返回数量", example = "50")
+            @RequestParam(defaultValue = "50") Integer limit
+    ) {
+        try {
+            // 获取热门视频
+            List<VideoVO> hotVideos = recommendService.getHotVideos(limit);
+            
+            return R.ok(hotVideos);
+            
+        } catch (Exception e) {
+            log.error("Failed to get hot videos: {}", e.getMessage(), e);
+            return R.error(500, "获取热门视频失败");
+        }
+    }
 }

@@ -160,7 +160,7 @@ public class CollectServiceImpl implements CollectService {
         java.util.concurrent.CompletableFuture.runAsync(() -> {
             try {
                 com.example.shortmovie.service.HeatScoreService heatScoreService = 
-                    org.springframework.context.ApplicationContextProvider.getApplicationContext()
+                    com.example.shortmovie.config.ApplicationContextProvider.getApplicationContext()
                         .getBean(com.example.shortmovie.service.HeatScoreService.class);
                 
                 heatScoreService.updateVideoHeatScore(videoId);
