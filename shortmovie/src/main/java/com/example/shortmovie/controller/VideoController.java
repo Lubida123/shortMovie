@@ -219,4 +219,47 @@ public class VideoController {
         VideoInteractionVO result = interactionService.getInteractionStatus(userId, videoId);
         return R.ok(result);
     }
+    
+    @Operation(summary = "搜索视频", description = "根据关键词搜索视频，支持多种搜索类型和排序方式，不需要登录")
+    @GetMapping("/search")
+    public R<PageVO<VideoVO>> searchVideos(
+            @Parameter(description = "搜索关键词", required = true)
+            @RequestParam String keyword,
+            
+            @Parameter(description = "搜索类型：all-全部, title-标题, tag-标签, category-分类, author-作者")
+            @RequestParam(defaultValue = "all") String searchType,
+            
+            @Parameter(description = "排序方式：hot-热度, time-时间, play-播放量, like-点赞数")
+            @RequestParam(defaultValue = "hot") String sortBy,
+            
+            @Parameter(description = "页码", example = "1")
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            
+            @Parameter(description = "每页大小", example = "20")
+            @RequestParam(defaultValue = "20") Integer pageSize,
+            
+            Authentication authentication
+    ) {
+        // 获取当前用户ID（可能为null，表示未登录）
+        Long userId = null;
+        if (authentication != null && authentication.isAuthenticated()) {
+            try {
+                userId = Long.parseLong(authentication.getName());
+            } catch (Exception e) {
+                // 未登录或认证信息无效，userId保持为null
+            }
+        }
+        
+        try {
+            // 调用Service层搜索
+            PageVO<VideoVO> result = videoService.searchVideos(
+                keyword, searchType, sortBy, pageNum, pageSize, userId
+            );
+            
+            return R.ok(result);
+            
+        } catch (Exception e) {
+            return R.error(500, "搜索视频失败: " + e.getMessage());
+        }
+    }
 }

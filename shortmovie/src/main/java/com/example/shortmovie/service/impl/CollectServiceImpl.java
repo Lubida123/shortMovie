@@ -114,9 +114,9 @@ public class CollectServiceImpl implements CollectService {
         behaviorRecord.setCreateTime(LocalDateTime.now());
 
         try {
-            // 1. 先保存到MySQL（持久化）
-            behaviorRecordMapper.insert(behaviorRecord);
-            log.debug("Collect behavior saved to MySQL: userId={}, videoId={}", userId, videoId);
+            // 1. 先保存到MySQL（持久化）- 使用 INSERT OR UPDATE 避免重复键冲突
+            behaviorRecordMapper.saveOrUpdate(behaviorRecord);
+            log.debug("Collect behavior saved/updated in MySQL: userId={}, videoId={}", userId, videoId);
             
             // 2. 再发送到Kafka
             kafkaMessageProducer.sendBehaviorObject(behaviorRecord);
@@ -128,6 +128,7 @@ public class CollectServiceImpl implements CollectService {
         
         // 删除视频详情缓存（收藏数已更新）
         invalidateVideoDetailCache(videoId);
+
         
         // 异步更新热度分数
         updateHeatScoreAsync(videoId);

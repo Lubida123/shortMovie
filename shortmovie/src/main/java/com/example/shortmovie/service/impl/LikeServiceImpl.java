@@ -114,9 +114,9 @@ public class LikeServiceImpl implements LikeService {
         behaviorRecord.setCreateTime(LocalDateTime.now());
 
         try {
-            // 1. 先保存到MySQL（持久化）
-            behaviorRecordMapper.insert(behaviorRecord);
-            log.debug("Like behavior saved to MySQL: userId={}, videoId={}", userId, videoId);
+            // 1. 先保存到MySQL（持久化）- 使用 INSERT OR UPDATE 避免重复键冲突
+            behaviorRecordMapper.saveOrUpdate(behaviorRecord);
+            log.debug("Like behavior saved/updated in MySQL: userId={}, videoId={}", userId, videoId);
             
             // 2. 再发送到Kafka
             kafkaMessageProducer.sendBehaviorObject(behaviorRecord);
@@ -128,6 +128,7 @@ public class LikeServiceImpl implements LikeService {
         
         // 删除视频详情缓存（点赞数已更新）
         invalidateVideoDetailCache(videoId);
+
         
         // 异步更新热度分数
         updateHeatScoreAsync(videoId);

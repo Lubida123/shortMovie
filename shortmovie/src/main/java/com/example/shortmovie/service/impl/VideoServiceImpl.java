@@ -389,9 +389,9 @@ public class VideoServiceImpl implements VideoService {
                 behaviorRecord.setIsCompleted((isCompleted != null && isCompleted) ? 1 : 0);
                 behaviorRecord.setCreateTime(LocalDateTime.now());
                 
-                // 1. 先保存到MySQL（持久化）
-                behaviorRecordMapper.insert(behaviorRecord);
-                log.debug("Play behavior saved to MySQL: userId={}, videoId={}", userId, videoId);
+                // 1. 先保存到MySQL（持久化）- 使用 INSERT OR UPDATE 避免重复键冲突
+                behaviorRecordMapper.saveOrUpdate(behaviorRecord);
+                log.debug("Play behavior saved/updated in MySQL: userId={}, videoId={}", userId, videoId);
                 
                 // 2. 再发送到Kafka（异步，失败不影响主流程）
                 kafkaMessageProducer.sendBehaviorObject(behaviorRecord);
@@ -511,6 +511,97 @@ public class VideoServiceImpl implements VideoService {
                 log.warn("Failed to update heat score asynchronously for videoId={}: {}", videoId, e.getMessage());
             }
         });
+    }
+    
+    @Override
+    public PageVO<VideoVO> searchVideos(String keyword, String searchType, String sortBy,
+                                        Integer pageNum, Integer pageSize, Long userId) {
+        // 1. 参数验证
+        if (keyword == null || keyword.trim().isEmpty()) {
+            throw new com.example.shortmovie.exception.ValidationException("搜索关键词不能为空");
+        }
+        
+        // 2. 创建分页对象
+        Page<Video> page = new Page<>(pageNum, pageSize);
+        
+        // 3. 构建查询条件
+        LambdaQueryWrapper<Video> queryWrapper = new LambdaQueryWrapper<>();
+        
+        // 只查询已审核的视频
+        queryWrapper.eq(Video::getAuditStatus, 1);
+        
+        // 根据搜索类型构建查询条件
+        String trimmedKeyword = keyword.trim();
+        switch (searchType.toLowerCase()) {
+            case "title":
+                queryWrapper.like(Video::getTitle, trimmedKeyword);
+                break;
+            case "tag":
+                queryWrapper.like(Video::getTags, trimmedKeyword);
+                break;
+            case "category":
+                queryWrapper.eq(Video::getCategory, trimmedKeyword);
+                break;
+            case "author":
+                queryWrapper.like(Video::getAuthorName, trimmedKeyword);
+                break;
+            case "all":
+            default:
+                // 搜索多个字段（标题、描述、标签、分类、作者）
+                queryWrapper.and(wrapper -> wrapper
+                    .like(Video::getTitle, trimmedKeyword)
+                    .or().like(Video::getDescription, trimmedKeyword)
+                    .or().like(Video::getTags, trimmedKeyword)
+                    .or().like(Video::getCategory, trimmedKeyword)
+                    .or().like(Video::getAuthorName, trimmedKeyword)
+                );
+                break;
+        }
+        
+        // 4. 根据排序方式排序
+        switch (sortBy.toLowerCase()) {
+            case "time":
+                queryWrapper.orderByDesc(Video::getCreateTime);
+                break;
+            case "play":
+                queryWrapper.orderByDesc(Video::getPlayCount);
+                break;
+            case "like":
+                queryWrapper.orderByDesc(Video::getLikeCount);
+                break;
+            case "hot":
+            default:
+                queryWrapper.orderByDesc(Video::getHeatScore);
+                break;
+        }
+        
+        // 5. 执行查询
+        Page<Video> videoPage = videoMapper.selectPage(page, queryWrapper);
+        
+        // 6. 如果用户已登录，查询点赞和收藏状态
+        Set<Long> likedVideoIds = null;
+        Set<Long> collectedVideoIds = null;
+        if (userId != null) {
+            likedVideoIds = getUserLikedVideoIds(userId);
+            collectedVideoIds = getUserCollectedVideoIds(userId);
+        }
+        
+        // 7. 转换为VO
+        Set<Long> finalLikedVideoIds = likedVideoIds;
+        Set<Long> finalCollectedVideoIds = collectedVideoIds;
+        
+        List<VideoVO> videoVOList = videoPage.getRecords().stream()
+            .map(video -> convertToVideoVO(video, finalLikedVideoIds, finalCollectedVideoIds))
+            .collect(Collectors.toList());
+        
+        // 8. 构建分页响应
+        return PageVO.<VideoVO>builder()
+            .pageNum(pageNum)
+            .pageSize(pageSize)
+            .total(videoPage.getTotal())
+            .pages((int) videoPage.getPages())
+            .records(videoVOList)
+            .build();
     }
 }
 

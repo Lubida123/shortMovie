@@ -161,8 +161,8 @@ public class CommentServiceImpl implements CommentService {
             behaviorRecord.setBehaviorType("COMMENT");
             behaviorRecord.setCreateTime(LocalDateTime.now());
             
-            // 1. 先保存到MySQL（持久化）
-            behaviorRecordMapper.insert(behaviorRecord);
+            // 1. 先保存到MySQL（持久化）- 使用 INSERT OR UPDATE 避免重复键冲突
+            behaviorRecordMapper.saveOrUpdate(behaviorRecord);
             
             // 2. 再发送到Kafka
             kafkaMessageProducer.sendBehaviorObject(behaviorRecord);

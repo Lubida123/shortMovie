@@ -51,4 +51,18 @@ public interface VideoService {
      * @param isCompleted 是否完播
      */
     void incrementPlayCount(Long videoId, Long userId, Integer playDuration, Boolean isCompleted);
+    
+    /**
+     * 搜索视频
+     * 
+     * @param keyword 搜索关键词
+     * @param searchType 搜索类型（all/title/tag/category/author）
+     * @param sortBy 排序方式（hot/time/play/like）
+     * @param pageNum 页码
+     * @param pageSize 每页大小
+     * @param userId 用户ID（可选，用于返回点赞/收藏状态）
+     * @return 搜索结果分页
+     */
+    PageVO<VideoVO> searchVideos(String keyword, String searchType, String sortBy, 
+                                 Integer pageNum, Integer pageSize, Long userId);
 }
