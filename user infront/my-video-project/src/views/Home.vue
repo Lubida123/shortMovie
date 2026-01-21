@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { computed, onMounted, defineAsyncComponent } from 'vue'
+import { computed, onMounted, defineAsyncComponent, ref } from 'vue'
 import { useUserStore } from '../store/userStore'
 const VideoFeed = defineAsyncComponent(() => import('../components/VideoFeed.vue'))
 
@@ -12,6 +12,19 @@ const avatarUrl = computed(
     userStore.userInfo?.avatarUrl ||
     new URL('../assets/img/avatar.png', import.meta.url).href
 )
+const navItems = [
+  {
+    id: 'recommend',
+    label: '推荐',
+    icon: new URL('../assets/img/icon/home/new.webp', import.meta.url).href,
+  },
+  {
+    id: 'hot',
+    label: '热门',
+    icon: new URL('../assets/img/icon/home/hot.webp', import.meta.url).href,
+  },
+]
+const activeFeed = ref('recommend')
 
 onMounted(() => {
   if (userStore.token) {
@@ -28,29 +41,16 @@ onMounted(() => {
         <img src="../assets/log.png" alt="Spark Movie" class="logo-img" />
       </div>
       <nav class="side-nav">
-        <button class="nav-item active">
-          <img src="../assets/img/icon/home/hot.webp" alt="Recommend" />
-          推荐
-        </button>
-        <button class="nav-item">
-          <img src="../assets/img/icon/home/new.webp" alt="Featured" />
-          精选
-        </button>
-        <button class="nav-item">
-          <img src="../assets/img/icon/location.webp" alt="Nearby" />
-          同城
-        </button>
-        <button class="nav-item">
-          <img src="../assets/img/icon/home/followed.webp" alt="Following" />
-          关注
-        </button>
-        <button class="nav-item">
-          <img src="../assets/img/icon/live.webp" alt="Live" />
-          直播
-        </button>
-        <button class="nav-item">
-          <img src="../assets/img/icon/music.svg" alt="Drama" />
-          短剧
+        <button
+          v-for="item in navItems"
+          :key="item.id"
+          class="nav-item"
+          :class="{ active: activeFeed === item.id }"
+          :aria-pressed="activeFeed === item.id"
+          @click="activeFeed = item.id"
+        >
+          <img :src="item.icon" :alt="item.label" />
+          <span class="nav-label">{{ item.label }}</span>
         </button>
       </nav>
     </aside>
@@ -94,7 +94,7 @@ onMounted(() => {
       </header>
 
       <section class="video-shell">
-        <VideoFeed />
+        <VideoFeed :feed-type="activeFeed" />
       </section>
     </main>
 
@@ -112,7 +112,7 @@ onMounted(() => {
 .dy-home {
   height: 100vh;
   display: grid;
-  grid-template-columns: 240rem 1fr;
+  grid-template-columns: 200rem 1fr;
   background: var(--dy-bg-body);
   color: var(--dy-text-primary);
   position: relative;
@@ -146,9 +146,10 @@ onMounted(() => {
 
 .dy-side {
   background: linear-gradient(180deg, rgba(15, 18, 29, 0.95) 0%, rgba(12, 14, 22, 0.95) 100%);
-  padding: 22rem 18rem;
-  display: grid;
-  gap: 24rem;
+  padding: 18rem 14rem;
+  display: flex;
+  flex-direction: column;
+  gap: 14rem;
   border-right: 1px solid rgba(148, 163, 184, 0.12);
   height: 100vh;
   position: sticky;
@@ -157,7 +158,7 @@ onMounted(() => {
 }
 
 .side-logo img {
-  width: 124rem;
+  width: 92rem;
 }
 
 .logo-img {
@@ -169,8 +170,9 @@ onMounted(() => {
 }
 
 .side-nav {
-  display: grid;
-  gap: 12rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8rem;
 }
 
 .nav-item {
@@ -180,27 +182,36 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12rem;
-  padding: 12rem 14rem;
-  border-radius: 14rem;
+  padding: 8rem 10rem;
+  border-radius: 12rem;
   cursor: pointer;
   transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  font-size: 12rem;
+  min-height: 36rem;
+  width: 100%;
 }
 
 .nav-item img {
-  width: 20rem;
+  width: 16rem;
+  height: 16rem;
+  object-fit: contain;
   opacity: 0.9;
 }
 
+.nav-label {
+  font-weight: 600;
+}
+
 .nav-item.active {
-  background: linear-gradient(120deg, rgba(59, 130, 246, 0.25), rgba(34, 211, 238, 0.2));
+  background: linear-gradient(120deg, rgba(59, 130, 246, 0.22), rgba(34, 211, 238, 0.16));
   color: var(--dy-text-primary);
-  box-shadow: 0 10rem 24rem rgba(59, 130, 246, 0.18);
+  box-shadow: 0 6rem 14rem rgba(59, 130, 246, 0.18);
 }
 
 .nav-item:hover {
   background: var(--dy-bg-hover);
   color: var(--dy-text-primary);
-  transform: translateX(4rem);
+  transform: translateX(2rem);
 }
 
 .dy-main {

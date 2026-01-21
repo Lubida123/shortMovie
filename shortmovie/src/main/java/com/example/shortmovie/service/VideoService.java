@@ -1,11 +1,12 @@
 package com.example.shortmovie.service;
 
+import org.springframework.web.multipart.MultipartFile;
+
 import com.example.shortmovie.dto.VideoUploadDTO;
 import com.example.shortmovie.vo.PageVO;
 import com.example.shortmovie.vo.VideoDetailVO;
 import com.example.shortmovie.vo.VideoUploadVO;
 import com.example.shortmovie.vo.VideoVO;
-import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 视频服务接口
@@ -42,9 +43,12 @@ public interface VideoService {
     VideoDetailVO getVideoDetail(Long videoId, Long userId);
     
     /**
-     * 增加视频播放次数
+     * 增加视频播放次数并发送行为记录到Kafka
      * 
      * @param videoId 视频ID
+     * @param userId 用户ID（可为null，表示未登录）
+     * @param playDuration 播放时长（秒）
+     * @param isCompleted 是否完播
      */
-    void incrementPlayCount(Long videoId);
+    void incrementPlayCount(Long videoId, Long userId, Integer playDuration, Boolean isCompleted);
 }

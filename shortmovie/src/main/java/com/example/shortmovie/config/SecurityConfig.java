@@ -10,6 +10,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 /**
  * Spring Security配置
@@ -20,6 +21,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
     
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CorsConfigurationSource corsConfigurationSource;
     
     /**
      * 密码编码器
@@ -35,6 +37,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -59,7 +62,9 @@ public class SecurityConfig {
                                 "/api/user/send-code",
                                 "/api/video/upload",  // 临时允许视频上传（仅用于测试）
                                 "/api/video/list",    // 允许匿名访问视频列表
-                                "/api/video/*/detail" // 允许匿名访问视频详情
+                                "/api/video/*/detail", // 允许匿名访问视频详情
+                                "/api/admin/login",
+                                "/api/admin/register"
                         ).permitAll()
                         .requestMatchers("/sendmsg").permitAll()
                         .requestMatchers("/analysis/movie").permitAll()

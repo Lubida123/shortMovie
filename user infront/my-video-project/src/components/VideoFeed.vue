@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus'
 import { useUserStore } from '../store/userStore'
 import {
   getVideoList,
+  getHotVideos,
   getVideoDetail,
   recordPlay,
   toggleLike,
@@ -14,11 +15,20 @@ import {
 import { getVideoComments, createComment } from '../api/comment'
 
 const emit = defineEmits(['load-more', 'comment-like', 'comment-reply'])
+const props = defineProps({
+  feedType: {
+    type: String,
+    default: 'recommend',
+  },
+})
 const router = useRouter()
 const userStore = useUserStore()
 
-const CACHE_KEY = 'video_feed_cache_v1'
+const feedLabel = computed(() => (props.feedType === 'hot' ? '热门' : '推荐'))
+const CACHE_KEY_PREFIX = 'video_feed_cache_v1:'
 const CACHE_TTL = 5 * 60 * 1000
+const getFeedType = () => (props.feedType === 'hot' ? 'hot' : 'recommend')
+const getCacheKey = () => `${CACHE_KEY_PREFIX}${getFeedType()}`
 
 const videos = ref([])
 const currentIndex = ref(0)
@@ -109,6 +119,42 @@ const formatCommentTime = (value) => {
   return dateText
 }
 
+const formatPublishTime = (value) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  const diff = Date.now() - date.getTime()
+  if (diff < 60 * 1000) return '刚刚'
+  if (diff < 60 * 60 * 1000) return `${Math.floor(diff / 60000)}分钟前`
+  if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / 3600000)}小时前`
+  if (diff < 30 * 24 * 60 * 60 * 1000) return `${Math.floor(diff / 86400000)}天前`
+  const day = `${date.getMonth() + 1}`.padStart(2, '0')
+  const dateText = `${date.getFullYear()}-${day}-${`${date.getDate()}`.padStart(2, '0')}`
+  return dateText
+}
+
+const normalizeTags = (value) => {
+  if (!value) return []
+  const rawList = Array.isArray(value) ? value : String(value).split(',')
+  return rawList
+    .map((tag) => {
+      if (!tag) return ''
+      if (typeof tag === 'object') {
+        return tag.name || tag.label || tag.tag || ''
+      }
+      return String(tag)
+    })
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .flatMap((tag) => {
+      if (!tag.includes('#')) return [tag]
+      const parts = tag.split(/\s+/).filter(Boolean)
+      return parts.length ? parts : [tag]
+    })
+    .map((tag) => (tag.startsWith('#') ? tag.slice(1) : tag))
+    .filter(Boolean)
+}
+
 const mapCommentVO = (item) => {
   if (!item) return null
   const replies = Array.isArray(item.replies) ? item.replies : []
@@ -129,6 +175,8 @@ const normalizeVideo = (item) => {
   const authorName = item.authorName || item.author || '匿名'
   const cover = item.coverUrl || item.cover || ''
   const url = item.videoUrl || item.url || ''
+  const tags = normalizeTags(item.tags || item.tagList || item.videoTags || item.labels || item.topics)
+  const publishTime = item.createTime || item.publishTime || item.createdAt || item.publishAt
   if (!cover && !url) return null
   return {
     id: item.videoId || item.id,
@@ -141,6 +189,10 @@ const normalizeVideo = (item) => {
     duration: formatDuration(item.duration || 0),
     cover,
     url,
+    tags,
+    publishTime,
+    metaLoaded: Boolean(tags.length || publishTime),
+    metaLoading: false,
     likeCount: item.likeCount ?? 0,
     commentCount: item.commentCount ?? 0,
     collectCount: item.collectCount ?? 0,
@@ -153,8 +205,34 @@ const normalizeVideo = (item) => {
 
 const extractPageList = (payload) => {
   const pageData = payload?.data ?? payload
+  if (Array.isArray(pageData)) return pageData
   const list = pageData?.records ?? pageData?.list ?? []
   return Array.isArray(list) ? list : []
+}
+
+const extractPageMeta = (payload) => {
+  const pageData = payload?.data ?? payload
+  if (Array.isArray(pageData)) {
+    return { paged: false }
+  }
+  return {
+    paged: true,
+    pages: pageData?.pages,
+    total: pageData?.total,
+  }
+}
+
+const resolveHasMore = (list, meta) => {
+  if (!meta?.paged) return false
+  const pages = Number(meta?.pages)
+  if (Number.isFinite(pages) && pages > 0) {
+    return pageNum.value < pages
+  }
+  const total = Number(meta?.total)
+  if (Number.isFinite(total) && total >= 0) {
+    return pageNum.value * pageSize < total
+  }
+  return list.length >= pageSize
 }
 
 const ensureCommentState = (videoId) => {
@@ -225,12 +303,13 @@ const reportDuration = async (id) => {
 
 const hydrateFromCache = () => {
   try {
-    const raw = sessionStorage.getItem(CACHE_KEY)
+    const cacheKey = getCacheKey()
+    const raw = sessionStorage.getItem(cacheKey)
     if (!raw) return false
     const cached = JSON.parse(raw)
     if (!cached?.videos || !Array.isArray(cached.videos)) return false
     if (hasSignedUrl(cached.videos)) {
-      sessionStorage.removeItem(CACHE_KEY)
+      sessionStorage.removeItem(cacheKey)
       return false
     }
     if (Date.now() - (cached.ts || 0) > CACHE_TTL) return false
@@ -252,11 +331,12 @@ const hydrateFromCache = () => {
 const persistCache = () => {
   try {
     if (hasSignedUrl(videos.value)) {
-      sessionStorage.removeItem(CACHE_KEY)
+      sessionStorage.removeItem(getCacheKey())
       return
     }
+    const cacheKey = getCacheKey()
     sessionStorage.setItem(
-      CACHE_KEY,
+      cacheKey,
       JSON.stringify({
         ts: Date.now(),
         videos: videos.value,
@@ -275,35 +355,87 @@ const fetchVideos = async () => {
   loading.value = true
   loadError.value = ''
   try {
-    const { data } = await getVideoList({
+    const params = {
       pageNum: pageNum.value,
       pageSize,
-    })
+      feedType: getFeedType(),
+      limit: pageSize,
+    }
+    let response = null
+    if (props.feedType === 'hot') {
+      try {
+        response = await getHotVideos(params)
+      } catch (error) {
+        if (error?.response?.status !== 404) {
+          throw error
+        }
+      }
+    }
+    if (!response) {
+      response = await getVideoList(params)
+    }
+    const { data } = response
     if (data?.code !== undefined && data?.code !== 200) {
       loadError.value = data?.message || '加载失败'
       return
     }
     const list = extractPageList(data)
+    const meta = extractPageMeta(data)
     const mapped = list.map(normalizeVideo).filter((item) => item && item.id)
     if (mapped.length === 0) {
       if (videos.value.length === 0) {
-        loadError.value = '暂无视频数据'
+        loadError.value = `暂无${feedLabel.value}视频`
       }
       hasMore.value = false
       return
     }
     videos.value.push(...mapped)
-    pageNum.value += 1
+    hasMore.value = resolveHasMore(list, meta)
+    if (hasMore.value) {
+      pageNum.value += 1
+    }
     persistCache()
   } catch (error) {
     const status = error?.response?.status
     if (status === 401) {
-      loadError.value = '请先登录后查看推荐'
+      loadError.value = `请先登录后查看${feedLabel.value}`
     } else {
       loadError.value = '加载失败，请检查后端服务'
     }
   } finally {
     loading.value = false
+  }
+}
+
+const resetFeedState = () => {
+  videos.value = []
+  currentIndex.value = 0
+  isSwitching.value = false
+  loading.value = false
+  hasMore.value = true
+  loadError.value = ''
+  pageNum.value = 1
+  videoRefs.value = []
+  progressRefs.value = []
+  currentTimes.value = {}
+  durations.value = {}
+  retryLoading.value = {}
+  showComments.value = false
+  newComment.value = ''
+  replyTo.value = null
+  commentsByVideo.value = {}
+  commentPageByVideo.value = {}
+  commentHasMoreByVideo.value = {}
+  commentLoadingByVideo.value = {}
+  commentErrorByVideo.value = {}
+  commentSending.value = false
+  targetVideoId.value = null
+  targetResolved.value = false
+  targetAttempts.value = 0
+  playStates.clear()
+  if (switchTimer) {
+    window.clearTimeout(switchTimer)
+    switchTimer = null
   }
 }
 
@@ -375,18 +507,54 @@ const refreshVideoSource = async (video) => {
     const { data } = await getVideoDetail(video.id)
     if (data?.code !== 200) return false
     const detail = data?.data || {}
-    const nextUrl = detail.videoUrl || detail.url || video.url
-    const nextCover = detail.coverUrl || detail.cover || video.cover
-    if (nextUrl) {
-      video.url = nextUrl
-    }
-    if (nextCover) {
-      video.cover = nextCover
-    }
+    applyVideoDetail(video, detail)
     video.error = false
     return true
   } catch (error) {
     return false
+  }
+}
+
+const applyVideoDetail = (video, detail) => {
+  if (!video || !detail) return
+  const nextUrl = detail.videoUrl || detail.url || video.url
+  const nextCover = detail.coverUrl || detail.cover || video.cover
+  const tags = normalizeTags(
+    detail.tags || detail.tagList || detail.videoTags || detail.labels || detail.topics
+  )
+  const publishTime =
+    detail.createTime || detail.publishTime || detail.createdAt || detail.publishAt
+
+  if (nextUrl) {
+    video.url = nextUrl
+  }
+  if (nextCover) {
+    video.cover = nextCover
+  }
+  if (tags.length) {
+    video.tags = tags
+  }
+  if (publishTime) {
+    video.publishTime = publishTime
+  }
+  video.metaLoaded = Boolean(tags.length || publishTime)
+}
+
+const hydrateVideoMeta = async (video) => {
+  if (!video?.id || video.metaLoaded || video.metaLoading) return
+  if (video.tags?.length || video.publishTime) {
+    video.metaLoaded = true
+    return
+  }
+  video.metaLoading = true
+  try {
+    const { data } = await getVideoDetail(video.id)
+    if (data?.code !== 200) return
+    applyVideoDetail(video, data?.data || {})
+  } catch (error) {
+    // ignore meta fetch errors
+  } finally {
+    video.metaLoading = false
   }
 }
 
@@ -890,6 +1058,18 @@ onMounted(async () => {
 })
 
 watch(
+  () => props.feedType,
+  (next, prev) => {
+    if (next === prev) return
+    resetFeedState()
+    const restored = hydrateFromCache()
+    if (!restored || videos.value.length === 0) {
+      fetchVideos()
+    }
+  }
+)
+
+watch(
   () => currentIndex.value,
   (index, prevIndex) => {
     if (Number.isFinite(prevIndex) && prevIndex !== index) {
@@ -902,6 +1082,7 @@ watch(
     if (videos.value.length) {
       syncPlayback(index)
       applyInteractionStatus(videos.value[index])
+      hydrateVideoMeta(videos.value[index])
     }
     persistCache()
     showComments.value = false
@@ -917,6 +1098,7 @@ watch(
     if (length) {
       syncPlayback(currentIndex.value)
       applyInteractionStatus(videos.value[currentIndex.value])
+      hydrateVideoMeta(videos.value[currentIndex.value])
     }
     if (targetVideoId.value && !targetResolved.value) {
       if (!resolveTargetFromList()) {
@@ -1001,6 +1183,15 @@ onBeforeUnmount(() => {
                 <span>{{ video.author }}</span>
               </div>
               <h1>{{ video.title }}</h1>
+              <div
+                v-if="video.tags?.length || video.publishTime"
+                class="player-meta"
+              >
+                <span v-for="tag in video.tags" :key="tag" class="meta-chip">#{{ tag }}</span>
+                <span v-if="video.publishTime" class="meta-time">
+                  {{ formatPublishTime(video.publishTime) }}
+                </span>
+              </div>
               <p v-if="video.desc" class="desc">{{ video.desc }}</p>
             </div>
             <div class="player-progress">
@@ -1360,6 +1551,30 @@ onBeforeUnmount(() => {
   margin: 0 0 6rem;
   font-size: 26rem;
   font-weight: 600;
+}
+
+.player-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8rem;
+  margin-bottom: 6rem;
+  font-size: 11rem;
+  color: rgba(226, 232, 240, 0.85);
+}
+
+.meta-chip,
+.meta-time {
+  padding: 4rem 10rem;
+  border-radius: 999rem;
+  background: rgba(15, 23, 42, 0.45);
+  border: 1rem solid rgba(148, 163, 184, 0.2);
+  backdrop-filter: blur(6px);
+  text-shadow: 0 2rem 8rem rgba(0, 0, 0, 0.45);
+}
+
+.meta-time {
+  color: rgba(226, 232, 240, 0.75);
 }
 
 .desc {

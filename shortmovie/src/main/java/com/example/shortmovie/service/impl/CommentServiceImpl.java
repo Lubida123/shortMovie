@@ -37,10 +37,12 @@ import com.example.shortmovie.vo.CommentVO;
 import com.example.shortmovie.vo.PageVO;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 评论服务实现类
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CommentServiceImpl implements CommentService {
@@ -51,6 +53,7 @@ public class CommentServiceImpl implements CommentService {
     private final SensitiveWordService sensitiveWordService;
     private final KafkaMessageProducer kafkaMessageProducer;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final com.example.shortmovie.mapper.BehaviorRecordMapper behaviorRecordMapper;
     
     private static final String DUPLICATE_COMMENT_KEY_PREFIX = "comment:duplicate:";
     private static final long DUPLICATE_CHECK_SECONDS = 10;
@@ -147,6 +150,9 @@ public class CommentServiceImpl implements CommentService {
         // 删除该视频的评论列表缓存
         invalidateCommentListCache(dto.getVideoId());
         
+        // 异步更新热度分数
+        updateHeatScoreAsync(dto.getVideoId());
+        
         // 异步发送Kafka消息
         try {
             BehaviorRecord behaviorRecord = new BehaviorRecord();
@@ -154,6 +160,11 @@ public class CommentServiceImpl implements CommentService {
             behaviorRecord.setVideoId(dto.getVideoId());
             behaviorRecord.setBehaviorType("COMMENT");
             behaviorRecord.setCreateTime(LocalDateTime.now());
+            
+            // 1. 先保存到MySQL（持久化）
+            behaviorRecordMapper.insert(behaviorRecord);
+            
+            // 2. 再发送到Kafka
             kafkaMessageProducer.sendBehaviorObject(behaviorRecord);
         } catch (Exception e) {
             // Kafka发送失败不影响主流程，记录日志即可
@@ -395,5 +406,23 @@ public class CommentServiceImpl implements CommentService {
             // 缓存删除失败不影响主流程
             System.err.println("删除评论列表缓存失败: " + e.getMessage());
         }
+    }
+    
+    /**
+     * 异步更新视频热度分数
+     */
+    private void updateHeatScoreAsync(Long videoId) {
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                com.example.shortmovie.service.HeatScoreService heatScoreService = 
+                    org.springframework.context.ApplicationContextProvider.getApplicationContext()
+                        .getBean(com.example.shortmovie.service.HeatScoreService.class);
+                
+                heatScoreService.updateVideoHeatScore(videoId);
+                log.debug("Heat score updated asynchronously after comment action for videoId={}", videoId);
+            } catch (Exception e) {
+                log.warn("Failed to update heat score asynchronously for videoId={}: {}", videoId, e.getMessage());
+            }
+        });
     }
 }

@@ -47,6 +47,8 @@ public class KafkaMessageProducerImpl implements KafkaMessageProducer{
      */
     @Override
     public void sendBehaviorObject(BehaviorRecord behavior){
+        // 关键修改：发送前转换createTime为timestamp
+        behavior.prepareForKafka();
         sendBehaviorObjectWithRetry(behavior, 0);
     }
     

@@ -14,6 +14,8 @@ export const uploadVideo = (payload) => {
 
 export const getVideoList = (params) => http.get('/api/video/list', { params })
 
+export const getHotVideos = (params) => http.get('/api/recommend/hot', { params })
+
 export const getVideoDetail = (videoId) => http.get(`/api/video/${videoId}`)
 
 export const recordPlay = (videoId, playRecord) =>

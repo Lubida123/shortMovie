@@ -3,9 +3,9 @@ spring:
     name: shortmovie
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/short_movie_db?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3306/video_platform?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true
     username: root
-    password: 741852963zxc
+    password: root
   servlet:
     multipart:
       max-file-size: 500MB      # 单个文件最大大小
@@ -17,8 +17,8 @@ spring:
     producer:
       # 消息键的序列化方式
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      # 消息值的序列化方式
-      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+      # 消息值的序列化方式（修改为JSON序列化器以支持对象序列化）
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       # 消息发送确认机制
       acks: 1
       # 重试次数
@@ -63,8 +63,8 @@ mybatis-plus:
 tencent:
   cos:
     enabled: true
-    secret-id: ${TENCENT_SECRET_ID}
-    secret-key: ${TENCENT_SECRET_KEY}
+    secret-id: ${TENCENT_SECRET_ID:default}
+    secret-key: ${TENCENT_SECRET_KEY:default}
     region: ap-guangzhou
     bucket-name: short-video-1396257793
     base-path: shortmovie/video/
