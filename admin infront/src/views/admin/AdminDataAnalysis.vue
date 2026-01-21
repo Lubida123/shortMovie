@@ -316,14 +316,13 @@
           </div>
         </el-col>
         
-        <!-- 热门创作者排行榜 -->
+        <!-- 热门创作者排行榜（已移除粉丝数列） -->
         <el-col :xs="24" :lg="12">
           <div class="table-card">
             <div class="table-header">
               <h3><el-icon><StarFilled /></el-icon> 热门创作者排行榜</h3>
               <div class="table-actions">
                 <el-select v-model="hotCreatorSort" size="small" style="width: 120px;" @change="handleHotCreatorSortChange">
-                  <el-option label="按粉丝数" value="followers" />
                   <el-option label="按作品数" value="videos" />
                   <el-option label="按总获赞" value="totalLikes" />
                   <el-option label="按互动指数" value="interactionScore" />
@@ -357,19 +356,13 @@
                   </template>
                 </el-table-column>
                 
-                <el-table-column prop="followers" label="粉丝数" width="100" align="center">
-                  <template #default="scope">
-                    <span class="followers-count">{{ formatNumber(scope.row.followers) }}</span>
-                  </template>
-                </el-table-column>
-                
-                <el-table-column prop="videos" label="作品数" width="100" align="center">
+                <el-table-column prop="videos" label="作品数" width="120" align="center">
                   <template #default="scope">
                     <span class="videos-count">{{ scope.row.videos }}</span>
                   </template>
                 </el-table-column>
                 
-                <el-table-column label="总获赞" width="100" align="center">
+                <el-table-column label="总获赞" width="120" align="center">
                   <template #default="scope">
                     <span class="total-likes">{{ formatNumber(scope.row.totalLikes) }}</span>
                   </template>
@@ -475,7 +468,7 @@ const userGrowthType = ref('new')
 const categorySort = ref('count')
 const activePeriod = ref('all')
 const hotVideoSort = ref('views')
-const hotCreatorSort = ref('followers')
+const hotCreatorSort = ref('videos') // 默认按作品数排序
 const lastUpdateTime = ref('')
 
 // 图表放大相关状态
@@ -652,7 +645,6 @@ const rawHotCreators = ref([
     avatar: 'https://via.placeholder.com/40?text=ZS', 
     name: '张三', 
     category: '生活', 
-    followers: 154321, 
     videos: 56, 
     totalLikes: 234567,
     activity: 'high',
@@ -664,7 +656,6 @@ const rawHotCreators = ref([
     avatar: 'https://via.placeholder.com/40?text=LS', 
     name: '李四', 
     category: '娱乐', 
-    followers: 143210, 
     videos: 43, 
     totalLikes: 198765,
     activity: 'medium',
@@ -676,7 +667,6 @@ const rawHotCreators = ref([
     avatar: 'https://via.placeholder.com/40?text=WW', 
     name: '王五', 
     category: '知识', 
-    followers: 132109, 
     videos: 32, 
     totalLikes: 176543,
     activity: 'high',
@@ -688,7 +678,6 @@ const rawHotCreators = ref([
     avatar: 'https://via.placeholder.com/40?text=ZL', 
     name: '赵六', 
     category: '游戏', 
-    followers: 121098, 
     videos: 67, 
     totalLikes: 154321,
     activity: 'low',
@@ -700,7 +689,6 @@ const rawHotCreators = ref([
     avatar: 'https://via.placeholder.com/40?text=QQ', 
     name: '钱七', 
     category: '音乐', 
-    followers: 110987, 
     videos: 45, 
     totalLikes: 143210,
     activity: 'medium',
@@ -712,7 +700,6 @@ const rawHotCreators = ref([
     avatar: 'https://via.placeholder.com/40?text=SB', 
     name: '孙八', 
     category: '美食', 
-    followers: 109876, 
     videos: 78, 
     totalLikes: 132198,
     activity: 'high',
@@ -724,7 +711,6 @@ const rawHotCreators = ref([
     avatar: 'https://via.placeholder.com/40?text=ZJ', 
     name: '周九', 
     category: '旅行', 
-    followers: 98765, 
     videos: 34, 
     totalLikes: 121087,
     activity: 'medium',
@@ -736,7 +722,6 @@ const rawHotCreators = ref([
     avatar: 'https://via.placeholder.com/40?text=WS', 
     name: '吴十', 
     category: '健身', 
-    followers: 87654, 
     videos: 89, 
     totalLikes: 109876,
     activity: 'high',
@@ -748,7 +733,6 @@ const rawHotCreators = ref([
     avatar: 'https://via.placeholder.com/40?text=ZSSY', 
     name: '郑十一', 
     category: '科技', 
-    followers: 76543, 
     videos: 23, 
     totalLikes: 98765,
     activity: 'low',
@@ -760,7 +744,6 @@ const rawHotCreators = ref([
     avatar: 'https://via.placeholder.com/40?text=WSE', 
     name: '王十二', 
     category: '宠物', 
-    followers: 65432, 
     videos: 91, 
     totalLikes: 87654,
     activity: 'high',
@@ -790,14 +773,12 @@ const sortedHotVideos = computed(() => {
   }
 })
 
-// 排序后的热门创作者
+// 排序后的热门创作者（已移除按粉丝数排序）
 const sortedHotCreators = computed(() => {
   const creators = [...rawHotCreators.value]
   
   // 根据排序条件排序
   switch (hotCreatorSort.value) {
-    case 'followers':
-      return creators.sort((a, b) => b.followers - a.followers)
     case 'videos':
       return creators.sort((a, b) => b.videos - a.videos)
     case 'totalLikes':
@@ -811,7 +792,7 @@ const sortedHotCreators = computed(() => {
         return calculateInteractionScore(b) - calculateInteractionScore(a)
       })
     default:
-      return creators.sort((a, b) => b.followers - a.followers)
+      return creators.sort((a, b) => b.videos - a.videos)
   }
 })
 
@@ -1860,11 +1841,10 @@ const handleHotVideoSortChange = () => {
   ElMessage.success(`已按${sortLabels[hotVideoSort.value]}排序`)
 }
 
-// 热门创作者排序改变
+// 热门创作者排序改变（已移除按粉丝数选项）
 const handleHotCreatorSortChange = () => {
   // 排序逻辑已通过计算属性实现
   const sortLabels = {
-    followers: '粉丝数',
     videos: '作品数',
     totalLikes: '总获赞',
     interactionScore: '互动指数'
@@ -1923,7 +1903,7 @@ const handleVideoClick = (row) => {
 // 创作者点击
 const handleCreatorClick = (row) => {
   ElMessageBox.confirm(
-    `创作者详情：${row.name}<br/>分类：${row.category}<br/>粉丝数：${formatNumber(row.followers)}<br/>作品数：${row.videos}<br/>最后活跃：${row.lastActive}`,
+    `创作者详情：${row.name}<br/>分类：${row.category}<br/>作品数：${row.videos}<br/>总获赞：${formatNumber(row.totalLikes)}<br/>最后活跃：${row.lastActive}`,
     '创作者详情',
     {
       confirmButtonText: '查看主页',
@@ -1976,7 +1956,7 @@ const refreshData = () => {
     // 更新创作者数据（模拟变化）
     rawHotCreators.value = rawHotCreators.value.map(creator => ({
       ...creator,
-      followers: creator.followers + Math.floor(Math.random() * 500),
+      videos: creator.videos + Math.floor(Math.random() * 5),
       totalLikes: creator.totalLikes + Math.floor(Math.random() * 1000),
       fansGrowth: (Math.random() * 20 - 5).toFixed(1)
     }))
@@ -2421,7 +2401,6 @@ onUnmounted(() => {
   // 计数样式
   .views-count,
   .likes-count,
-  .followers-count,
   .videos-count,
   .total-likes {
     font-family: "DIN Condensed", sans-serif;
