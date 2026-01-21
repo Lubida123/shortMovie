@@ -241,11 +241,11 @@
       </el-row>
     </div>
 
-    <!-- 数据表格：热门视频/用户排行榜 -->
+    <!-- 数据表格：热门视频排行榜 -->
     <div class="data-tables">
       <el-row :gutter="20">
         <!-- 热门视频排行榜 -->
-        <el-col :xs="24" :lg="12">
+        <el-col :xs="24" :lg="24">
           <div class="table-card">
             <div class="table-header">
               <h3><el-icon><Trophy /></el-icon> 热门视频排行榜</h3>
@@ -308,70 +308,6 @@
                     <div class="video-trend" :class="scope.row.trend >= 0 ? 'up' : 'down'">
                       <el-icon :size="12"><TrendingUp v-if="scope.row.trend >= 0" /><TrendingDown v-else /></el-icon>
                       <span>{{ Math.abs(scope.row.trend) }}%</span>
-                    </div>
-                  </template>
-                </el-table-column>
-              </el-table>
-            </div>
-          </div>
-        </el-col>
-        
-        <!-- 热门创作者排行榜（已移除粉丝数列） -->
-        <el-col :xs="24" :lg="12">
-          <div class="table-card">
-            <div class="table-header">
-              <h3><el-icon><StarFilled /></el-icon> 热门创作者排行榜</h3>
-              <div class="table-actions">
-                <el-select v-model="hotCreatorSort" size="small" style="width: 120px;" @change="handleHotCreatorSortChange">
-                  <el-option label="按作品数" value="videos" />
-                  <el-option label="按总获赞" value="totalLikes" />
-                  <el-option label="按互动指数" value="interactionScore" />
-                </el-select>
-              </div>
-            </div>
-            <div class="table-container">
-              <el-table
-                :data="sortedHotCreators"
-                style="width: 100%"
-                :row-class-name="tableRowClassName"
-                @row-click="handleCreatorClick"
-              >
-                <el-table-column label="排名" width="60" align="center">
-                  <template #default="scope">
-                    <div class="rank-cell" :class="getRankClass(scope.$index)">
-                      {{ scope.$index + 1 }}
-                    </div>
-                  </template>
-                </el-table-column>
-                
-                <el-table-column label="创作者" min-width="180">
-                  <template #default="scope">
-                    <div class="creator-info">
-                      <el-avatar :size="36" :src="scope.row.avatar" />
-                      <div class="creator-details">
-                        <div class="creator-name">{{ scope.row.name }}</div>
-                        <div class="creator-category">{{ scope.row.category }}</div>
-                      </div>
-                    </div>
-                  </template>
-                </el-table-column>
-                
-                <el-table-column prop="videos" label="作品数" width="120" align="center">
-                  <template #default="scope">
-                    <span class="videos-count">{{ scope.row.videos }}</span>
-                  </template>
-                </el-table-column>
-                
-                <el-table-column label="总获赞" width="120" align="center">
-                  <template #default="scope">
-                    <span class="total-likes">{{ formatNumber(scope.row.totalLikes) }}</span>
-                  </template>
-                </el-table-column>
-                
-                <el-table-column label="活跃度" width="80" align="center">
-                  <template #default="scope">
-                    <div class="creator-activity" :class="getActivityClass(scope.row.activity)">
-                      {{ getActivityText(scope.row.activity) }}
                     </div>
                   </template>
                 </el-table-column>
@@ -449,7 +385,6 @@ import {
   DataAnalysis,
   Clock,
   Trophy,
-  StarFilled,
   Refresh,
   Download,
   FullScreen,
@@ -468,7 +403,6 @@ const userGrowthType = ref('new')
 const categorySort = ref('count')
 const activePeriod = ref('all')
 const hotVideoSort = ref('views')
-const hotCreatorSort = ref('videos') // 默认按作品数排序
 const lastUpdateTime = ref('')
 
 // 图表放大相关状态
@@ -639,118 +573,70 @@ const rawHotVideos = ref([
   }
 ])
 
-const rawHotCreators = ref([
-  { 
-    id: 1, 
-    avatar: 'https://via.placeholder.com/40?text=ZS', 
-    name: '张三', 
-    category: '生活', 
-    videos: 56, 
-    totalLikes: 234567,
-    activity: 'high',
-    fansGrowth: 15.2,
-    lastActive: '今天'
-  },
-  { 
-    id: 2, 
-    avatar: 'https://via.placeholder.com/40?text=LS', 
-    name: '李四', 
-    category: '娱乐', 
-    videos: 43, 
-    totalLikes: 198765,
-    activity: 'medium',
-    fansGrowth: 8.3,
-    lastActive: '今天'
-  },
-  { 
-    id: 3, 
-    avatar: 'https://via.placeholder.com/40?text=WW', 
-    name: '王五', 
-    category: '知识', 
-    videos: 32, 
-    totalLikes: 176543,
-    activity: 'high',
-    fansGrowth: 12.5,
-    lastActive: '昨天'
-  },
-  { 
-    id: 4, 
-    avatar: 'https://via.placeholder.com/40?text=ZL', 
-    name: '赵六', 
-    category: '游戏', 
-    videos: 67, 
-    totalLikes: 154321,
-    activity: 'low',
-    fansGrowth: 5.7,
-    lastActive: '2天前'
-  },
-  { 
-    id: 5, 
-    avatar: 'https://via.placeholder.com/40?text=QQ', 
-    name: '钱七', 
-    category: '音乐', 
-    videos: 45, 
-    totalLikes: 143210,
-    activity: 'medium',
-    fansGrowth: 9.1,
-    lastActive: '今天'
-  },
-  { 
-    id: 6, 
-    avatar: 'https://via.placeholder.com/40?text=SB', 
-    name: '孙八', 
-    category: '美食', 
-    videos: 78, 
-    totalLikes: 132198,
-    activity: 'high',
-    fansGrowth: 18.4,
-    lastActive: '今天'
-  },
-  { 
-    id: 7, 
-    avatar: 'https://via.placeholder.com/40?text=ZJ', 
-    name: '周九', 
-    category: '旅行', 
-    videos: 34, 
-    totalLikes: 121087,
-    activity: 'medium',
-    fansGrowth: 6.8,
-    lastActive: '昨天'
-  },
-  { 
-    id: 8, 
-    avatar: 'https://via.placeholder.com/40?text=WS', 
-    name: '吴十', 
-    category: '健身', 
-    videos: 89, 
-    totalLikes: 109876,
-    activity: 'high',
-    fansGrowth: 22.1,
-    lastActive: '今天'
-  },
-  { 
-    id: 9, 
-    avatar: 'https://via.placeholder.com/40?text=ZSSY', 
-    name: '郑十一', 
-    category: '科技', 
-    videos: 23, 
-    totalLikes: 98765,
-    activity: 'low',
-    fansGrowth: 4.3,
-    lastActive: '3天前'
-  },
-  { 
-    id: 10, 
-    avatar: 'https://via.placeholder.com/40?text=WSE', 
-    name: '王十二', 
-    category: '宠物', 
-    videos: 91, 
-    totalLikes: 87654,
-    activity: 'high',
-    fansGrowth: 27.6,
-    lastActive: '今天'
-  }
-])
+// 固定活跃时段数据（每个时段不超过1000）
+const fixedActivePeriodData = {
+  // 工作日数据 - 早晨和晚上高峰
+  weekday: [
+    50,   // 0:00
+    30,   // 1:00
+    20,   // 2:00
+    15,   // 3:00
+    20,   // 4:00
+    50,   // 5:00
+    180,  // 6:00
+    350,  // 7:00
+    450,  // 8:00
+    420,  // 9:00
+    400,  // 10:00
+    380,  // 11:00
+    450,  // 12:00 (午休时间)
+    420,  // 13:00
+    400,  // 14:00
+    380,  // 15:00
+    420,  // 16:00
+    500,  // 17:00 (下班时间开始)
+    750,  // 18:00
+    850,  // 19:00
+    950,  // 20:00 (晚间高峰)
+    800,  // 21:00
+    400,  // 22:00
+    150   // 23:00
+  ],
+  // 周末数据 - 白天活跃时间更长
+  weekend: [
+    80,   // 0:00
+    60,   // 1:00
+    40,   // 2:00
+    30,   // 3:00
+    40,   // 4:00
+    60,   // 5:00
+    120,  // 6:00
+    200,  // 7:00
+    350,  // 8:00
+    550,  // 9:00
+    700,  // 10:00
+    850,  // 11:00
+    950,  // 12:00 (午间高峰)
+    900,  // 13:00
+    850,  // 14:00
+    800,  // 15:00
+    850,  // 16:00
+    900,  // 17:00
+    950,  // 18:00 (晚间高峰)
+    980,  // 19:00
+    900,  // 20:00
+    650,  // 21:00
+    350,  // 22:00
+    120   // 23:00
+  ],
+  // 平均数据
+  all: []
+}
+
+// 计算平均数据
+fixedActivePeriodData.all = fixedActivePeriodData.weekday.map((weekdayValue, index) => {
+  return Math.round((weekdayValue + fixedActivePeriodData.weekend[index]) / 2)
+})
 
 // ==================== 计算属性：排序后的表格数据 ====================
 
@@ -770,29 +656,6 @@ const sortedHotVideos = computed(() => {
       return videos.sort((a, b) => b.interactionRate - a.interactionRate)
     default:
       return videos.sort((a, b) => b.views - a.views)
-  }
-})
-
-// 排序后的热门创作者（已移除按粉丝数排序）
-const sortedHotCreators = computed(() => {
-  const creators = [...rawHotCreators.value]
-  
-  // 根据排序条件排序
-  switch (hotCreatorSort.value) {
-    case 'videos':
-      return creators.sort((a, b) => b.videos - a.videos)
-    case 'totalLikes':
-      return creators.sort((a, b) => b.totalLikes - a.totalLikes)
-    case 'interactionScore':
-      // 互动指数 = 总获赞 / 作品数（平均每个视频的点赞数）
-      const calculateInteractionScore = (creator) => {
-        return creator.totalLikes / creator.videos
-      }
-      return creators.sort((a, b) => {
-        return calculateInteractionScore(b) - calculateInteractionScore(a)
-      })
-    default:
-      return creators.sort((a, b) => b.videos - a.videos)
   }
 })
 
@@ -1400,19 +1263,23 @@ const getCategoryChartOption = (isZoom = false) => {
   }
 }
 
-// 获取用户活跃时段分析图配置
+// 获取用户活跃时段分析图配置（使用固定数据）
 const getActivePeriodChartOption = (isZoom = false) => {
-  const hours = Array.from({ length: 24 }, (_, i) => `${i}:00`)
-  const weekdayData = generateRandomData(24, 1000, 5000)
-  const weekendData = generateRandomData(24, 2000, 8000)
+  const hours = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`)
   
   let data = []
-  if (activePeriod.value === 'weekday') {
-    data = weekdayData
-  } else if (activePeriod.value === 'weekend') {
-    data = weekendData
-  } else {
-    data = weekdayData.map((val, idx) => (val + weekendData[idx]) / 2)
+  switch (activePeriod.value) {
+    case 'weekday':
+      data = fixedActivePeriodData.weekday
+      break
+    case 'weekend':
+      data = fixedActivePeriodData.weekend
+      break
+    case 'all':
+      data = fixedActivePeriodData.all
+      break
+    default:
+      data = fixedActivePeriodData.all
   }
   
   return {
@@ -1423,7 +1290,9 @@ const getActivePeriodChartOption = (isZoom = false) => {
       borderColor: 'rgba(255, 255, 255, 0.1)',
       textStyle: { color: '#fff' },
       formatter: (params) => {
-        return `${params[0].name}<br/>活跃用户: ${formatNumber(params[0].value)}`
+        const hour = params[0].name
+        const value = params[0].value
+        return `时间: ${hour}<br/>活跃用户: ${value}人`
       }
     },
     grid: {
@@ -1439,20 +1308,17 @@ const getActivePeriodChartOption = (isZoom = false) => {
       axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.2)' } },
       axisLabel: { 
         color: 'rgba(255, 255, 255, 0.7)',
-        interval: isZoom ? 1 : 2,
+        interval: isZoom ? 0 : 2, // 显示所有小时标签
         fontSize: isZoom ? 11 : 9
       }
     },
     yAxis: {
       type: 'value',
+      max: 1000, // 固定Y轴最大值为1000
       axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.2)' } },
       axisLabel: { 
         color: 'rgba(255, 255, 255, 0.7)',
-        fontSize: isZoom ? 12 : 10,
-        formatter: (value) => {
-          if (value >= 1000) return (value / 1000).toFixed(0) + 'k'
-          return value
-        }
+        fontSize: isZoom ? 12 : 10
       },
       splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.1)' } }
     },
@@ -1475,7 +1341,21 @@ const getActivePeriodChartOption = (isZoom = false) => {
             }]
           }
         },
-        data: data
+        data: data,
+        markLine: {
+          silent: true,
+          lineStyle: {
+            color: '#FF9500',
+            type: 'dashed'
+          },
+          data: [{
+            yAxis: 800,
+            label: {
+              formatter: '高峰阈值',
+              position: 'middle'
+            }
+          }]
+        }
       }
     ]
   }
@@ -1531,26 +1411,6 @@ const getRankClass = (index) => {
   if (index === 1) return 'rank-silver'
   if (index === 2) return 'rank-bronze'
   return ''
-}
-
-// 获取活跃度样式
-const getActivityClass = (activity) => {
-  switch (activity) {
-    case 'high': return 'activity-high'
-    case 'medium': return 'activity-medium'
-    case 'low': return 'activity-low'
-    default: return ''
-  }
-}
-
-// 获取活跃度文本
-const getActivityText = (activity) => {
-  switch (activity) {
-    case 'high': return '高活跃'
-    case 'medium': return '中活跃'
-    case 'low': return '低活跃'
-    default: return '未知'
-  }
 }
 
 // 表格行样式
@@ -1841,17 +1701,6 @@ const handleHotVideoSortChange = () => {
   ElMessage.success(`已按${sortLabels[hotVideoSort.value]}排序`)
 }
 
-// 热门创作者排序改变（已移除按粉丝数选项）
-const handleHotCreatorSortChange = () => {
-  // 排序逻辑已通过计算属性实现
-  const sortLabels = {
-    videos: '作品数',
-    totalLikes: '总获赞',
-    interactionScore: '互动指数'
-  }
-  ElMessage.success(`已按${sortLabels[hotCreatorSort.value]}排序`)
-}
-
 // 导出数据
 const exportData = () => {
   ElMessageBox.confirm(
@@ -1866,8 +1715,8 @@ const exportData = () => {
     // 导出排序后的数据
     const exportData = {
       hotVideos: sortedHotVideos.value,
-      hotCreators: sortedHotCreators.value,
       coreMetrics: coreMetrics.value,
+      activePeriodData: fixedActivePeriodData,
       exportTime: new Date().toLocaleString('zh-CN')
     }
     
@@ -1893,20 +1742,6 @@ const handleVideoClick = (row) => {
     '视频详情',
     {
       confirmButtonText: '查看详情',
-      cancelButtonText: '关闭',
-      dangerouslyUseHTMLString: true,
-      type: 'info'
-    }
-  )
-}
-
-// 创作者点击
-const handleCreatorClick = (row) => {
-  ElMessageBox.confirm(
-    `创作者详情：${row.name}<br/>分类：${row.category}<br/>作品数：${row.videos}<br/>总获赞：${formatNumber(row.totalLikes)}<br/>最后活跃：${row.lastActive}`,
-    '创作者详情',
-    {
-      confirmButtonText: '查看主页',
       cancelButtonText: '关闭',
       dangerouslyUseHTMLString: true,
       type: 'info'
@@ -1951,14 +1786,6 @@ const refreshData = () => {
       likes: video.likes + Math.floor(Math.random() * 100),
       comments: video.comments + Math.floor(Math.random() * 50),
       trend: (Math.random() * 30 - 10).toFixed(1)
-    }))
-    
-    // 更新创作者数据（模拟变化）
-    rawHotCreators.value = rawHotCreators.value.map(creator => ({
-      ...creator,
-      videos: creator.videos + Math.floor(Math.random() * 5),
-      totalLikes: creator.totalLikes + Math.floor(Math.random() * 1000),
-      fansGrowth: (Math.random() * 20 - 5).toFixed(1)
     }))
     
     // 更新图表数据
@@ -2368,41 +2195,9 @@ onUnmounted(() => {
     }
   }
   
-  // 创作者信息样式
-  .creator-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    
-    .el-avatar {
-      flex-shrink: 0;
-    }
-    
-    .creator-details {
-      flex: 1;
-      min-width: 0;
-      
-      .creator-name {
-        font-size: 14px;
-        color: @dy-text-primary;
-        margin-bottom: 4px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      
-      .creator-category {
-        font-size: 12px;
-        color: @dy-text-tertiary;
-      }
-    }
-  }
-  
   // 计数样式
   .views-count,
-  .likes-count,
-  .videos-count,
-  .total-likes {
+  .likes-count {
     font-family: "DIN Condensed", sans-serif;
     font-weight: 500;
   }
@@ -2430,34 +2225,6 @@ onUnmounted(() => {
     &.down {
       background: rgba(254, 44, 85, 0.1);
       color: #FE2C55;
-    }
-  }
-  
-  // 创作者活跃度样式
-  .creator-activity {
-    display: inline-block;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 600;
-    text-align: center;
-    
-    &.activity-high {
-      background: rgba(0, 200, 100, 0.15);
-      color: #00C864;
-      border: 1px solid rgba(0, 200, 100, 0.3);
-    }
-    
-    &.activity-medium {
-      background: rgba(255, 149, 0, 0.15);
-      color: #FF9500;
-      border: 1px solid rgba(255, 149, 0, 0.3);
-    }
-    
-    &.activity-low {
-      background: rgba(254, 44, 85, 0.15);
-      color: #FE2C55;
-      border: 1px solid rgba(254, 44, 85, 0.3);
     }
   }
 }
@@ -2585,15 +2352,13 @@ onUnmounted(() => {
   }
   
   .data-tables {
-    .video-info,
-    .creator-info {
+    .video-info {
       flex-direction: column;
       align-items: flex-start;
       gap: 8px;
     }
     
-    .video-trend,
-    .creator-activity {
+    .video-trend {
       font-size: 10px;
       padding: 1px 4px;
     }
