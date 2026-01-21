@@ -128,6 +128,9 @@ public class LikeServiceImpl implements LikeService {
         
         // 删除视频详情缓存（点赞数已更新）
         invalidateVideoDetailCache(videoId);
+        
+        // 异步更新热度分数
+        updateHeatScoreAsync(videoId);
 
         // 构建响应
         LikeStatusVO response = new LikeStatusVO();
@@ -148,6 +151,24 @@ public class LikeServiceImpl implements LikeService {
         } catch (Exception e) {
             log.warn("Failed to invalidate video detail cache: videoId={}, error={}", videoId, e.getMessage());
         }
+    }
+    
+    /**
+     * 异步更新视频热度分数
+     */
+    private void updateHeatScoreAsync(Long videoId) {
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                com.example.shortmovie.service.HeatScoreService heatScoreService = 
+                    org.springframework.context.ApplicationContextProvider.getApplicationContext()
+                        .getBean(com.example.shortmovie.service.HeatScoreService.class);
+                
+                heatScoreService.updateVideoHeatScore(videoId);
+                log.debug("Heat score updated asynchronously after like action for videoId={}", videoId);
+            } catch (Exception e) {
+                log.warn("Failed to update heat score asynchronously for videoId={}: {}", videoId, e.getMessage());
+            }
+        });
     }
 
     @Override

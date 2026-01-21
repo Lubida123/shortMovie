@@ -372,6 +372,9 @@ public class VideoServiceImpl implements VideoService {
         // 删除视频详情缓存（播放数已更新）
         invalidateVideoDetailCache(videoId);
         
+        // 异步更新热度分数
+        updateHeatScoreAsync(videoId);
+        
         log.debug("Video play count incremented and cache invalidated: videoId={}", videoId);
         
         // 如果用户已登录，发送行为记录到Kafka
@@ -488,6 +491,26 @@ public class VideoServiceImpl implements VideoService {
     private Set<Long> getUserCollectedVideoIds(Long userId) {
         List<Long> videoIds = userCollectMapper.selectAllVideoIdsByUserId(userId);
         return videoIds.stream().collect(Collectors.toSet());
+    }
+    
+    /**
+     * 异步更新视频热度分数
+     * 使用CompletableFuture异步执行，不阻塞主流程
+     */
+    private void updateHeatScoreAsync(Long videoId) {
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                // 注入HeatScoreService（通过ApplicationContext获取）
+                com.example.shortmovie.service.HeatScoreService heatScoreService = 
+                    org.springframework.context.ApplicationContextProvider.getApplicationContext()
+                        .getBean(com.example.shortmovie.service.HeatScoreService.class);
+                
+                heatScoreService.updateVideoHeatScore(videoId);
+                log.debug("Heat score updated asynchronously for videoId={}", videoId);
+            } catch (Exception e) {
+                log.warn("Failed to update heat score asynchronously for videoId={}: {}", videoId, e.getMessage());
+            }
+        });
     }
 }
 

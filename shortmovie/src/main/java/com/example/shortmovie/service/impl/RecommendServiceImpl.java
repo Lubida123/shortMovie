@@ -271,10 +271,11 @@ public class RecommendServiceImpl implements RecommendService {
     @Override
     public List<VideoVO> getHotVideos(Integer limit) {
         try {
-            // 查询热门视频（按播放量降序）
+            // 查询热门视频（优先按热度分数降序，其次按播放量降序）
             LambdaQueryWrapper<Video> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(Video::getAuditStatus, 1)  // 只查询已审核的视频
-                    .orderByDesc(Video::getPlayCount)
+                    .orderByDesc(Video::getHeatScore)   // 优先按热度分数排序
+                    .orderByDesc(Video::getPlayCount)   // 热度分数相同时按播放量排序
                     .last("LIMIT " + limit);
             
             List<Video> hotVideos = videoMapper.selectList(queryWrapper);
@@ -289,7 +290,7 @@ public class RecommendServiceImpl implements RecommendService {
                     .map(video -> convertToVideoVO(video, null, null))
                     .collect(Collectors.toList());
             
-            log.info("Retrieved {} hot videos", result.size());
+            log.info("Retrieved {} hot videos (sorted by heatScore)", result.size());
             return result;
             
         } catch (Exception e) {
@@ -455,10 +456,11 @@ public class RecommendServiceImpl implements RecommendService {
             // 创建分页对象
             Page<Video> page = new Page<>(pageNum, pageSize);
             
-            // 查询热门视频（按播放量降序）
+            // 查询热门视频（优先按热度分数降序，其次按播放量降序）
             LambdaQueryWrapper<Video> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(Video::getAuditStatus, 1)
-                    .orderByDesc(Video::getPlayCount);
+                    .orderByDesc(Video::getHeatScore)    // 优先按热度分数排序
+                    .orderByDesc(Video::getPlayCount);   // 热度分数相同时按播放量排序
             
             Page<Video> videoPage = videoMapper.selectPage(page, queryWrapper);
             
@@ -467,7 +469,7 @@ public class RecommendServiceImpl implements RecommendService {
                     .map(video -> convertToVideoVO(video, null, null))
                     .collect(Collectors.toList());
             
-            log.info("Fallback to hot videos: retrieved {} videos", videoVOList.size());
+            log.info("Fallback to hot videos: retrieved {} videos (sorted by heatScore)", videoVOList.size());
             
             return PageVO.<VideoVO>builder()
                     .pageNum(pageNum)
