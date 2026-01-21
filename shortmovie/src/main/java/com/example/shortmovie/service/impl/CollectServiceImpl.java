@@ -39,6 +39,7 @@ public class CollectServiceImpl implements CollectService {
     private final VideoMapper videoMapper;
     private final KafkaMessageProducer kafkaMessageProducer;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final com.example.shortmovie.mapper.BehaviorRecordMapper behaviorRecordMapper;
 
     @Autowired(required = false)
     private FileStorageService fileStorageService;
@@ -113,6 +114,11 @@ public class CollectServiceImpl implements CollectService {
         behaviorRecord.setCreateTime(LocalDateTime.now());
 
         try {
+            // 1. 先保存到MySQL（持久化）
+            behaviorRecordMapper.insert(behaviorRecord);
+            log.debug("Collect behavior saved to MySQL: userId={}, videoId={}", userId, videoId);
+            
+            // 2. 再发送到Kafka
             kafkaMessageProducer.sendBehaviorObject(behaviorRecord);
             log.debug("收藏行为记录已发送到Kafka: userId={}, videoId={}", userId, videoId);
         } catch (Exception e) {

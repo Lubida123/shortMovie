@@ -16,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.shortmovie.dto.VideoUploadDTO;
+import com.example.shortmovie.entity.BehaviorRecord;
 import com.example.shortmovie.entity.User;
 import com.example.shortmovie.entity.Video;
 import com.example.shortmovie.exception.BusinessException;
@@ -26,6 +27,7 @@ import com.example.shortmovie.mapper.UserMapper;
 import com.example.shortmovie.mapper.VideoMapper;
 import com.example.shortmovie.service.FileStorageService;
 import com.example.shortmovie.service.InteractionService;
+import com.example.shortmovie.service.KafkaMessageProducer;
 import com.example.shortmovie.service.VideoService;
 import com.example.shortmovie.vo.PageVO;
 import com.example.shortmovie.vo.VideoDetailVO;
@@ -50,6 +52,8 @@ public class VideoServiceImpl implements VideoService {
     private final UserCollectMapper userCollectMapper;
     private final InteractionService interactionService;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final KafkaMessageProducer kafkaMessageProducer;
+    private final com.example.shortmovie.mapper.BehaviorRecordMapper behaviorRecordMapper;
 
     // 使用统一的文件存储服务（支持腾讯云 COS 等对象存储）
     @Autowired(required = false)
@@ -355,7 +359,7 @@ public class VideoServiceImpl implements VideoService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void incrementPlayCount(Long videoId) {
+    public void incrementPlayCount(Long videoId, Long userId, Integer playDuration, Boolean isCompleted) {
         Video video = videoMapper.selectById(videoId);
         if (video == null) {
             throw new ResourceNotFoundException("视频不存在");
@@ -369,6 +373,37 @@ public class VideoServiceImpl implements VideoService {
         invalidateVideoDetailCache(videoId);
         
         log.debug("Video play count incremented and cache invalidated: videoId={}", videoId);
+        
+        // 如果用户已登录，发送行为记录到Kafka
+        if (userId != null) {
+            try {
+                // 创建行为记录对象
+                BehaviorRecord behaviorRecord = new BehaviorRecord();
+                behaviorRecord.setUserId(userId);
+                behaviorRecord.setVideoId(videoId);
+                behaviorRecord.setBehaviorType("PLAY");
+                behaviorRecord.setPlayDuration(playDuration);
+                behaviorRecord.setIsCompleted((isCompleted != null && isCompleted) ? 1 : 0);
+                behaviorRecord.setCreateTime(LocalDateTime.now());
+                
+                // 1. 先保存到MySQL（持久化）
+                behaviorRecordMapper.insert(behaviorRecord);
+                log.debug("Play behavior saved to MySQL: userId={}, videoId={}", userId, videoId);
+                
+                // 2. 再发送到Kafka（异步，失败不影响主流程）
+                kafkaMessageProducer.sendBehaviorObject(behaviorRecord);
+                
+                log.info("Play behavior sent to Kafka: userId={}, videoId={}, playDuration={}, isCompleted={}", 
+                    userId, videoId, playDuration, isCompleted);
+            } catch (Exception e) {
+                // Kafka发送失败不影响用户操作，仅记录警告日志
+                log.warn("Failed to send play behavior to Kafka: userId={}, videoId={}, error={}", 
+                    userId, videoId, e.getMessage());
+            }
+        } else {
+            // 未登录用户，跳过Kafka发送
+            log.debug("User not logged in, skipping Kafka message for videoId={}", videoId);
+        }
     }
     
     /**

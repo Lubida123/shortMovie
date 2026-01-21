@@ -51,6 +51,7 @@ public class CommentServiceImpl implements CommentService {
     private final SensitiveWordService sensitiveWordService;
     private final KafkaMessageProducer kafkaMessageProducer;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final com.example.shortmovie.mapper.BehaviorRecordMapper behaviorRecordMapper;
     
     private static final String DUPLICATE_COMMENT_KEY_PREFIX = "comment:duplicate:";
     private static final long DUPLICATE_CHECK_SECONDS = 10;
@@ -154,6 +155,11 @@ public class CommentServiceImpl implements CommentService {
             behaviorRecord.setVideoId(dto.getVideoId());
             behaviorRecord.setBehaviorType("COMMENT");
             behaviorRecord.setCreateTime(LocalDateTime.now());
+            
+            // 1. 先保存到MySQL（持久化）
+            behaviorRecordMapper.insert(behaviorRecord);
+            
+            // 2. 再发送到Kafka
             kafkaMessageProducer.sendBehaviorObject(behaviorRecord);
         } catch (Exception e) {
             // Kafka发送失败不影响主流程，记录日志即可

@@ -1,0 +1,39 @@
+1.启动kafka
+启动kafka内置的zookeeper服务
+.\bin\windows\zookeeper-server-start.bat .\config\zookeeper.properties
+启动Kafka服务
+.\bin\windows\kafka-server-start.bat .\config\server.properties
+查看kafka有哪些topic
+.\bin\windows\kafka-topics.bat --list --bootstrap-server localhost:9092
+创建topic_test主题（参考）
+.\bin\windows\kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic short_video_behavior_topic
+进入Kafka生产者
+kafka-console-producer.bat --broker-list localhost:9092 --topic user_behavior_topic
+
+2.启动Flume Agent的命令
+进入Flume安装目录
+D:\>cd apache-flume-1.9.0-bin
+windows环境下启动Agent（指定配置文件和Agent名称）
+.\bin\flume-ng agent --conf .\conf --conf-file .\conf\kafka_to_hdfs.conf --name a1 -property flume.root.logger=INFO,console
+
+3.启动dfs
+start-dfs.cmd
+
+4. Redis
+进入 Redis 客户端
+redis-cli.exe
+验证用户已交互视频
+SMEMBERS user:interacted:2303
+查看实时推荐结果
+LRANGE recommend:user:2303 0 -1
+
+5.启动离线分析脚本
+.\start-offline-recommender.ps1
+
+6.启动实时推荐脚本
+.\start-realtime-recommender.ps1
+
+7.同时启动两个脚本
+.\start-all-services.ps1
+
+注意：项目的父目录必须是shortmovie

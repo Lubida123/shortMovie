@@ -145,10 +145,25 @@ public class VideoController {
             @PathVariable Long videoId,
             
             @Parameter(description = "播放记录信息")
-            @RequestBody(required = false) PlayRecordDTO dto
+            @RequestBody(required = false) PlayRecordDTO dto,
+            
+            Authentication authentication
     ) {
-        // 增加播放次数
-        videoService.incrementPlayCount(videoId);
+        // 获取当前用户ID（可能为null，表示未登录）
+        Long userId = null;
+        if (authentication != null && authentication.isAuthenticated()) {
+            try {
+                userId = Long.parseLong(authentication.getName());
+            } catch (Exception e) {
+                // 未登录或认证信息无效，userId保持为null
+            }
+        }
+        
+        // 记录播放行为（包含用户ID、播放时长、完播状态）
+        Integer playDuration = (dto != null) ? dto.getPlayDuration() : null;
+        Boolean isCompleted = (dto != null) ? dto.getIsCompleted() : null;
+        
+        videoService.incrementPlayCount(videoId, userId, playDuration, isCompleted);
         
         return R.ok(null);
     }
