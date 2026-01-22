@@ -1,107 +1,119 @@
-# 运行离线推荐训练
-# 这个脚本会训练ALS模型并生成推荐结果
+# Run Offline Recommendation Training
+# This script trains the ALS model and generates recommendations
 
-Write-Host "=== 离线推荐训练 ===" -ForegroundColor Cyan
+Write-Host "=== Offline Recommendation Training ===" -ForegroundColor Cyan
 Write-Host ""
 
-# 检查JAR文件是否存在
-$jarPath = "shortmovie-recommender\recommender-offline\target\recommender-offline-1.0-SNAPSHOT.jar"
-if (-not (Test-Path $jarPath)) {
-    Write-Host "❌ 找不到离线推荐JAR文件" -ForegroundColor Red
-    Write-Host "请先编译项目：" -ForegroundColor Yellow
+# Check if JAR files exist
+$offlineJar = "shortmovie-recommender\recommender-offline\target\recommender-offline-1.0-SNAPSHOT.jar"
+$commonJar = "shortmovie-recommender\recommender-common\target\recommender-common-1.0-SNAPSHOT.jar"
+
+if (-not (Test-Path $offlineJar)) {
+    Write-Host "[ERROR] Offline recommendation JAR file not found" -ForegroundColor Red
+    Write-Host "Please compile the project first:" -ForegroundColor Yellow
     Write-Host "  cd shortmovie-recommender" -ForegroundColor Green
     Write-Host "  mvn clean package -pl recommender-offline -am -DskipTests" -ForegroundColor Green
     exit 1
 }
 
-Write-Host "✅ 找到离线推荐JAR文件" -ForegroundColor Green
+if (-not (Test-Path $commonJar)) {
+    Write-Host "[ERROR] Common module JAR file not found" -ForegroundColor Red
+    Write-Host "Please compile the project first:" -ForegroundColor Yellow
+    Write-Host "  cd shortmovie-recommender" -ForegroundColor Green
+    Write-Host "  mvn clean package -pl recommender-offline -am -DskipTests" -ForegroundColor Green
+    exit 1
+}
+
+Write-Host "[OK] Found offline recommendation JAR file" -ForegroundColor Green
+Write-Host "[OK] Found common module JAR file" -ForegroundColor Green
 Write-Host ""
 
-# 检查behavior_record数据
-Write-Host "检查训练数据..." -ForegroundColor Yellow
-$recordCount = mysql -u root -proot -D video_platform -e "SELECT COUNT(*) as total FROM behavior_record;" 2>&1 | Select-String "^\|.*\|$" | Select-Object -Skip 1 | ForEach-Object { $_.ToString().Trim() -replace '\|', '' -replace ' ', '' }
+# Check behavior_record data
+Write-Host "Checking training data..." -ForegroundColor Yellow
+$recordCount = mysql -u root -proot -D video_platform -e "SELECT COUNT(*) as total FROM behavior_record;" 2>&1 | Select-String "total" | ForEach-Object { $_ -replace '.*total.*\|', '' -replace '\|', '' -replace ' ', '' }
 
-if ($recordCount -eq "0" -or $recordCount -eq $null) {
-    Write-Host "❌ behavior_record表为空，无法训练" -ForegroundColor Red
-    Write-Host "请先运行：" -ForegroundColor Yellow
+if ($recordCount -eq "0" -or $recordCount -eq $null -or $recordCount -eq "") {
+    Write-Host "[ERROR] behavior_record table is empty, cannot train" -ForegroundColor Red
+    Write-Host "Please run first:" -ForegroundColor Yellow
     Write-Host "  Get-Content insert-test-behavior-data.sql | mysql -u root -proot -D video_platform" -ForegroundColor Green
     exit 1
 }
 
-Write-Host "✅ 找到 $recordCount 条训练数据" -ForegroundColor Green
+Write-Host "[OK] Found $recordCount training records" -ForegroundColor Green
 Write-Host ""
 
-# 运行离线训练
-Write-Host "开始离线推荐训练..." -ForegroundColor Yellow
-Write-Host "这可能需要几分钟时间，请耐心等待..." -ForegroundColor Cyan
+# Run offline training
+Write-Host "Starting offline recommendation training..." -ForegroundColor Yellow
+Write-Host "This may take a few minutes, please wait..." -ForegroundColor Cyan
 Write-Host ""
 
 try {
-    # 使用spark-submit运行
+    # Use spark-submit to run
     $sparkSubmit = "spark-submit"
     
-    # 检查spark-submit是否可用
+    # Check if spark-submit is available
     $sparkCheck = Get-Command spark-submit -ErrorAction SilentlyContinue
     if (-not $sparkCheck) {
-        Write-Host "❌ 找不到spark-submit命令" -ForegroundColor Red
-        Write-Host "请确保Spark已安装并添加到PATH环境变量" -ForegroundColor Yellow
+        Write-Host "[ERROR] spark-submit command not found" -ForegroundColor Red
+        Write-Host "Please ensure Spark is installed and added to PATH environment variable" -ForegroundColor Yellow
         exit 1
     }
     
-    # 运行训练
+    # Run training with common JAR included
     & spark-submit `
         --class com.shortmovie.offline.Main `
         --master "local[*]" `
         --driver-memory 2g `
         --executor-memory 2g `
         --conf "spark.sql.shuffle.partitions=10" `
-        $jarPath
+        --jars $commonJar `
+        $offlineJar
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host ""
-        Write-Host "=== 训练完成 ===" -ForegroundColor Green
+        Write-Host "=== Training Complete ===" -ForegroundColor Green
         Write-Host ""
         
-        # 验证结果
-        Write-Host "验证训练结果..." -ForegroundColor Yellow
+        # Verify results
+        Write-Host "Verifying training results..." -ForegroundColor Yellow
         
-        # 检查recommendation_result表
+        # Check recommendation_result table
         Write-Host ""
-        Write-Host "1. recommendation_result 表：" -ForegroundColor Cyan
-        mysql -u root -proot -D video_platform -e "SELECT COUNT(*) as total_recommendations FROM recommendation_result;" 2>&1 | Select-String "^\|"
+        Write-Host "1. recommendation_result table:" -ForegroundColor Cyan
+        mysql -u root -proot -D video_platform -e "SELECT COUNT(*) as total_recommendations FROM recommendation_result;" 2>&1 | Select-String "total"
         
-        # 检查model_params表
+        # Check model_params table
         Write-Host ""
-        Write-Host "2. model_params 表：" -ForegroundColor Cyan
-        mysql -u root -proot -D video_platform -e "SELECT model_id, rank, rmse, training_time FROM model_params ORDER BY training_time DESC LIMIT 1;" 2>&1 | Select-String "^\|"
+        Write-Host "2. model_params table:" -ForegroundColor Cyan
+        mysql -u root -proot -D video_platform -e "SELECT model_id, rank, rmse, training_time FROM model_params ORDER BY training_time DESC LIMIT 1;" 2>&1 | Select-String "\|"
         
-        # 检查模型文件
+        # Check model files
         Write-Host ""
-        Write-Host "3. 模型文件：" -ForegroundColor Cyan
+        Write-Host "3. Model files:" -ForegroundColor Cyan
         if (Test-Path "data\models") {
             $modelDirs = Get-ChildItem "data\models" -Directory | Select-Object -First 3
             if ($modelDirs) {
-                Write-Host "✅ 模型已保存到 data\models\" -ForegroundColor Green
+                Write-Host "[OK] Model saved to data\models\" -ForegroundColor Green
                 $modelDirs | ForEach-Object { Write-Host "  - $($_.Name)" }
             } else {
-                Write-Host "⚠️ data\models 目录为空" -ForegroundColor Yellow
+                Write-Host "[WARN] data\models directory is empty" -ForegroundColor Yellow
             }
         } else {
-            Write-Host "⚠️ 找不到 data\models 目录" -ForegroundColor Yellow
+            Write-Host "[WARN] data\models directory not found" -ForegroundColor Yellow
         }
         
         Write-Host ""
-        Write-Host "=== 下一步 ===" -ForegroundColor Cyan
-        Write-Host "1. 启动实时推荐服务：.\start-realtime-recommender.ps1" -ForegroundColor Green
-        Write-Host "2. 测试推荐接口" -ForegroundColor Green
+        Write-Host "=== Next Steps ===" -ForegroundColor Cyan
+        Write-Host "1. Start realtime recommendation service: .\start-realtime-recommender.ps1" -ForegroundColor Green
+        Write-Host "2. Test recommendation API" -ForegroundColor Green
         
     } else {
         Write-Host ""
-        Write-Host "❌ 训练失败，退出码：$LASTEXITCODE" -ForegroundColor Red
-        Write-Host "请查看上面的错误日志" -ForegroundColor Yellow
+        Write-Host "[ERROR] Training failed, exit code: $LASTEXITCODE" -ForegroundColor Red
+        Write-Host "Please check the error logs above" -ForegroundColor Yellow
     }
     
 } catch {
     Write-Host ""
-    Write-Host "❌ 执行失败：$($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "[ERROR] Execution failed: $($_.Exception.Message)" -ForegroundColor Red
 }

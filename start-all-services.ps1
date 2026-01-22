@@ -84,13 +84,15 @@ if ($runOffline -ne "n" -and $runOffline -ne "N") {
     
     & .\run-offline-training.ps1
     
-    if ($LASTEXITCODE -eq 0) {
+    # Check if model was actually created (more reliable than exit code on Windows)
+    if (Test-Path "data\models\als_model") {
         Write-Host ""
-        Write-Host "  [OK] Offline training completed" -ForegroundColor Green
+        Write-Host "  [OK] Offline training completed successfully" -ForegroundColor Green
+        Write-Host "     Model saved to: data\models\als_model" -ForegroundColor Cyan
     } else {
         Write-Host ""
-        Write-Host "  [ERROR] Offline training failed" -ForegroundColor Red
-        Write-Host "     Please check logs" -ForegroundColor Yellow
+        Write-Host "  [ERROR] Offline training failed - model not found" -ForegroundColor Red
+        Write-Host "     Please check logs above" -ForegroundColor Yellow
     }
 } else {
     Write-Host "  Skipped offline training" -ForegroundColor Cyan

@@ -94,18 +94,15 @@ Write-Host ""
 Write-Host "Press Ctrl+C to stop the service" -ForegroundColor Yellow
 Write-Host ""
 
-# 关键修改：切换到shortmovie目录，确保相对路径正确
-Set-Location shortmovie
-
-# Start the service
-if (Test-Path "../$jarWithDeps") {
+# Start the service (stay in project root directory)
+if (Test-Path "$jarWithDeps") {
     # Use fat JAR (includes all dependencies)
     spark-submit `
         --class com.shortmovie.realtime.RealtimeRecommendApp `
         --master local[2] `
         --executor-memory 2g `
         --driver-memory 1g `
-        "../$jarPath"
+        "$jarPath"
 } else {
     # Use regular JAR with --jars option to include dependencies
     spark-submit `
@@ -113,6 +110,6 @@ if (Test-Path "../$jarWithDeps") {
         --master local[2] `
         --executor-memory 2g `
         --driver-memory 1g `
-        --jars "../$commonJar" `
-        "../$jarPath"
+        --jars "$commonJar" `
+        "$jarPath"
 }

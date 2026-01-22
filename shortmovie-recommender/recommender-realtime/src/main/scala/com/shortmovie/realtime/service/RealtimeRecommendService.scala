@@ -121,12 +121,14 @@ class RealtimeRecommendService(ssc: StreamingContext) {
  */
 object RealtimeRecommendService {
 
-  // 1. 静态评分表
+  // 1. 静态评分表（与 ScoreUtil 保持一致）
+  // 注意：PLAY 行为在实时场景中简化为固定 3.0 分（因为 Kafka 消息中可能缺少完播信息）
+  // 如需精确计算，应在发送 Kafka 消息前预先计算好分数
   val behaviorScoreMap = Map(
-    "PLAY" -> 3.0,
-    "LIKE" -> 5.0,
-    "COLLECT" -> 4.0,
-    "COMMENT" -> 3.5
+    "PLAY" -> 3.0,      // 播放行为（简化为固定分数）
+    "LIKE" -> 4.0,      // 点赞得4分
+    "COLLECT" -> 5.0,   // 收藏得5分（权重最高，表示最强兴趣）
+    "COMMENT" -> 3.5    // 评论得3.5分
   )
 
   // 2. 静态模型变量 (使用 @transient 标记，不参与序列化)
