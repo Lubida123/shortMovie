@@ -74,7 +74,6 @@
           <el-option label="待审核" value="pending" />
           <el-option label="已通过" value="approved" />
           <el-option label="已拒绝" value="rejected" />
-          <el-option label="已下架" value="taken_down" />
         </el-select>
 
         <el-select
@@ -184,7 +183,7 @@
     <!-- 视频列表表格 -->
     <div class="table-container">
       <el-table
-        :data="paginatedVideoList"
+        :data="videoList"
         style="width: 100%"
         v-loading="loading"
         @selection-change="handleSelectionChange"
@@ -313,13 +312,7 @@
                       divided
                       v-if="scope.row.status === 'approved'"
                     >
-                      <el-icon><Delete /></el-icon>下架
-                    </el-dropdown-item>
-                    <el-dropdown-item 
-                      @click="handleRestore(scope.row)" 
-                      v-if="scope.row.status === 'taken_down'"
-                    >
-                      <el-icon><RefreshRight /></el-icon>恢复
+                      <el-icon><Delete /></el-icon>拒绝
                     </el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
@@ -363,7 +356,16 @@ import {
   Filter,
   RefreshRight
 } from '@element-plus/icons-vue'
-import { getVideoList, getVideoStats } from '@/api/admin/userApi'
+import { 
+  getVideoList, 
+  getVideoStats, 
+  approveVideo, 
+  rejectVideo, 
+  batchApproveVideos,
+  batchRejectVideos,
+  batchDeleteVideos,
+  deleteVideo
+} from '@/api/admin/videoApi'
 
 // 状态管理
 const searchKeyword = ref('')
@@ -389,45 +391,12 @@ const stats = ref({
   yesterdayUploads: 0
 })
 
-// 原始视频列表数据
-const originalVideoList = ref([])
+// 原始视频列表数据（直接从后端获取，已经是当前页的数据）
+const videoList = ref([])
 
 // 计算属性：是否有激活的筛选条件
 const hasActiveFilters = computed(() => {
   return searchKeyword.value || filterStatus.value || filterCategory.value
-})
-
-// 计算属性：根据筛选条件过滤视频列表
-const filteredVideoList = computed(() => {
-  let result = [...originalVideoList.value]
-  
-  // 关键词搜索（标题或作者）
-  if (searchKeyword.value) {
-    const keyword = searchKeyword.value.toLowerCase()
-    result = result.filter(video => 
-      video.title.toLowerCase().includes(keyword) || 
-      video.authorName.toLowerCase().includes(keyword)
-    )
-  }
-  
-  // 状态筛选
-  if (filterStatus.value) {
-    result = result.filter(video => video.status === filterStatus.value)
-  }
-  
-  // 分类筛选
-  if (filterCategory.value) {
-    result = result.filter(video => video.category === filterCategory.value)
-  }
-  
-  return result
-})
-
-// 计算属性：分页后的视频列表
-const paginatedVideoList = computed(() => {
-  const startIndex = (pagination.value.pageNum - 1) * pagination.value.pageSize
-  const endIndex = startIndex + pagination.value.pageSize
-  return filteredVideoList.value.slice(startIndex, endIndex)
 })
 
 // 分类映射
@@ -443,8 +412,7 @@ const categoryMap = {
 const statusMap = {
   'pending': { name: '待审核', type: 'warning' },
   'approved': { name: '已通过', type: 'success' },
-  'rejected': { name: '已拒绝', type: 'danger' },
-  'taken_down': { name: '已下架', type: 'info' }
+  'rejected': { name: '已拒绝', type: 'danger' }
 }
 
 // 获取分类名称
@@ -476,26 +444,10 @@ const formatNumber = (num) => {
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
-// 更新分页总数
-const updatePaginationTotal = () => {
-  pagination.value.total = filteredVideoList.value.length
-  
-  // 如果当前页没有数据，且不是第一页，自动回到第一页
-  if (paginatedVideoList.value.length === 0 && pagination.value.pageNum > 1) {
-    pagination.value.pageNum = 1
-  }
-}
-
-// 搜索处理
+// 分页处理
 const handleSearch = () => {
-  loading.value = true
   pagination.value.pageNum = 1
-  updatePaginationTotal()
-  
-  setTimeout(() => {
-    ElMessage.success(`找到 ${filteredVideoList.value.length} 个视频`)
-    loading.value = false
-  }, 300)
+  fetchVideoList() // 调用后端API进行搜索
 }
 
 // 重置筛选
@@ -504,7 +456,7 @@ const resetFilters = () => {
   filterStatus.value = ''
   filterCategory.value = ''
   pagination.value.pageNum = 1
-  updatePaginationTotal()
+  fetchVideoList() // 重新获取数据
   ElMessage.info('已重置所有筛选条件')
 }
 
@@ -512,11 +464,12 @@ const resetFilters = () => {
 const handleSizeChange = (val) => {
   pagination.value.pageSize = val
   pagination.value.pageNum = 1
-  updatePaginationTotal()
+  fetchVideoList() // 重新获取数据
 }
 
 const handleCurrentChange = (val) => {
   pagination.value.pageNum = val
+  fetchVideoList() // 重新获取数据
 }
 
 // 获取视频列表
@@ -532,14 +485,14 @@ const fetchVideoList = async () => {
     }
     
     const res = await getVideoList(params)
-    originalVideoList.value = res.list || res || []
-    pagination.value.total = res.total || originalVideoList.value.length
+    videoList.value = res.list || res || []
+    pagination.value.total = res.total || 0
     
   } catch (error) {
     console.error('获取视频列表失败:', error)
-    // 使用模拟数据作为后备
-    originalVideoList.value = generateMockVideos()
-    pagination.value.total = originalVideoList.value.length
+    ElMessage.error('获取视频列表失败，请重试')
+    videoList.value = []
+    pagination.value.total = 0
   } finally {
     loading.value = false
   }
@@ -567,7 +520,7 @@ const fetchVideoStats = async () => {
 const generateMockVideos = () => {
   const videos = []
   const categories = ['life', 'entertainment', 'knowledge', 'game', 'music']
-  const statuses = ['pending', 'approved', 'rejected', 'taken_down']
+  const statuses = ['pending', 'approved', 'rejected']
   const authors = ['张三', '李四', '王五', '赵六', '钱七']
   const titles = [
     '生活小技巧分享',
@@ -627,14 +580,25 @@ const batchApprove = async () => {
     )
     
     const ids = selectedVideos.value.map(video => video.id)
+    
+    // 调用后端API
+    await batchApproveVideos(ids)
+    
+    // 更新本地数据
     selectedVideos.value.forEach(video => {
       video.status = 'approved'
     })
     
     ElMessage.success(`已成功通过 ${selectedVideos.value.length} 个视频`)
     clearSelection()
-  } catch {
-    ElMessage.info('已取消批量通过')
+    fetchVideoStats() // 刷新统计数据
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('批量通过失败:', error)
+      ElMessage.error('批量通过失败，请重试')
+    } else {
+      ElMessage.info('已取消批量通过')
+    }
   }
 }
 
@@ -651,14 +615,26 @@ const batchReject = async () => {
       { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
     )
     
+    const ids = selectedVideos.value.map(video => video.id)
+    
+    // 调用后端API
+    await batchRejectVideos(ids)
+    
+    // 更新本地数据
     selectedVideos.value.forEach(video => {
       video.status = 'rejected'
     })
     
     ElMessage.success(`已成功拒绝 ${selectedVideos.value.length} 个视频`)
     clearSelection()
-  } catch {
-    ElMessage.info('已取消批量拒绝')
+    fetchVideoStats() // 刷新统计数据
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('批量拒绝失败:', error)
+      ElMessage.error('批量拒绝失败，请重试')
+    } else {
+      ElMessage.info('已取消批量拒绝')
+    }
   }
 }
 
@@ -675,17 +651,22 @@ const batchDelete = async () => {
       { confirmButtonText: '确定', cancelButtonText: '取消', type: 'danger' }
     )
     
-    const idsToDelete = selectedVideos.value.map(v => v.id)
-    originalVideoList.value = originalVideoList.value.filter(
-      video => !idsToDelete.includes(video.id)
-    )
+    const ids = selectedVideos.value.map(v => v.id)
+    
+    // 调用后端API
+    await batchDeleteVideos(ids)
     
     ElMessage.success(`已成功删除 ${selectedVideos.value.length} 个视频`)
     clearSelection()
-    updatePaginationTotal()
+    fetchVideoList() // 重新获取列表
     fetchVideoStats()
-  } catch {
-    ElMessage.info('已取消批量删除')
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('批量删除失败:', error)
+      ElMessage.error('批量删除失败，请重试')
+    } else {
+      ElMessage.info('已取消批量删除')
+    }
   }
 }
 
@@ -709,11 +690,21 @@ const handleApprove = async (video) => {
       '通过审核',
       { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
     )
+    
+    // 调用后端API
+    await approveVideo(video.id)
+    
+    // 更新本地数据
     video.status = 'approved'
     ElMessage.success('视频已通过审核')
     fetchVideoStats()
-  } catch {
-    ElMessage.info('已取消通过操作')
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('审核通过失败:', error)
+      ElMessage.error('审核通过失败，请重试')
+    } else {
+      ElMessage.info('已取消通过操作')
+    }
   }
 }
 
@@ -724,11 +715,21 @@ const handleReject = async (video) => {
       '拒绝审核',
       { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
     )
+    
+    // 调用后端API
+    await rejectVideo(video.id)
+    
+    // 更新本地数据
     video.status = 'rejected'
     ElMessage.success('视频已拒绝审核')
     fetchVideoStats()
-  } catch {
-    ElMessage.info('已取消拒绝操作')
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('审核拒绝失败:', error)
+      ElMessage.error('审核拒绝失败，请重试')
+    } else {
+      ElMessage.info('已取消拒绝操作')
+    }
   }
 }
 
@@ -739,15 +740,25 @@ const handleEdit = (video) => {
 const handleTakeDown = async (video) => {
   try {
     await ElMessageBox.confirm(
-      '确定要下架这个视频吗？',
-      '下架视频',
+      '确定要拒绝这个视频吗？',
+      '拒绝视频',
       { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
     )
-    video.status = 'taken_down'
-    ElMessage.success('视频已下架')
+    
+    // 调用后端API - 使用 rejectVideo 接口
+    await rejectVideo(video.id)
+    
+    // 更新本地数据
+    video.status = 'rejected'
+    ElMessage.success('视频已拒绝')
     fetchVideoStats()
-  } catch {
-    ElMessage.info('已取消下架操作')
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('拒绝视频失败:', error)
+      ElMessage.error('拒绝视频失败，请重试')
+    } else {
+      ElMessage.info('已取消拒绝操作')
+    }
   }
 }
 
@@ -758,18 +769,23 @@ const handleRestore = async (video) => {
       '恢复视频',
       { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
     )
+    
+    // 调用后端API
+    await restoreVideo(video.id)
+    
+    // 更新本地数据
     video.status = 'approved'
     ElMessage.success('视频已恢复')
     fetchVideoStats()
-  } catch {
-    ElMessage.info('已取消恢复操作')
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('恢复视频失败:', error)
+      ElMessage.error('恢复视频失败，请重试')
+    } else {
+      ElMessage.info('已取消恢复操作')
+    }
   }
 }
-
-// 监听筛选条件变化，自动更新分页总数
-watch([searchKeyword, filterStatus, filterCategory], () => {
-  updatePaginationTotal()
-})
 
 // 初始化
 onMounted(() => {
@@ -1321,7 +1337,7 @@ onMounted(() => {
       }
     }
     
-    // 已下架
+    // 已拒绝
     &.el-tag--info {
       background: @dy-tag-info-bg !important;
       color: @dy-tag-info-text !important;
