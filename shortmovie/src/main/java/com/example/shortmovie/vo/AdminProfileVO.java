@@ -35,4 +35,10 @@ public class AdminProfileVO {
 
     @Schema(description = "逻辑删除：0-未删除，1-已删除")
     private Integer isDeleted;
+
+    @Schema(description = "角色标识")
+    private String role;
+
+    @Schema(description = "权限列表")
+    private java.util.List<String> permissions;
 }

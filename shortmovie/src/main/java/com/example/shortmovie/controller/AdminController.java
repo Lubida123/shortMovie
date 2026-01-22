@@ -14,13 +14,13 @@ import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.*;
 
 @Slf4j
-@Tag(name = "管理接口", description = "管理员登录、信息管理相关接口")
+@Tag(name = "管理接口", description = "管理员登录相关接口")
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
@@ -85,5 +85,6 @@ public class AdminController {
         AdminLoginVO loginVO = adminService.login(dto);
         return R.ok(loginVO);
     }
+
 
 }
