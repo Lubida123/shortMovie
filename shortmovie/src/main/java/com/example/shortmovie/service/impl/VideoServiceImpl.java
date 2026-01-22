@@ -92,7 +92,7 @@ public class VideoServiceImpl implements VideoService {
         // 上传文件到存储服务
         String objectKey = fileStorageService.uploadFile(file);
 
-        // 获取视频访问 URL
+        // 获取视频访问 URL（仅用于返回给前端，不存储到数据库）
         String videoUrl = fileStorageService.getFileUrl(objectKey);
 
         // 创建视频记录
@@ -102,7 +102,8 @@ public class VideoServiceImpl implements VideoService {
         video.setAuthorId(authorId);
         video.setAuthorName(author.getUsername());
         video.setObjectKey(objectKey);
-        video.setVideoUrl(videoUrl);  // 保存视频 URL
+        // 不再存储临时URL到数据库，只存储objectKey
+        // video.setVideoUrl(videoUrl);  // 已弃用：临时URL会过期
         video.setFileSize(file.getSize());
         video.setFormat(getFileExtension(file.getOriginalFilename()));
         video.setCategory(dto.getCategory());

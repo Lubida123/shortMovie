@@ -1,6 +1,5 @@
 package com.example.shortmovie.config;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -11,6 +10,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
+
+import lombok.RequiredArgsConstructor;
 
 /**
  * Spring Security配置
@@ -63,6 +64,11 @@ public class SecurityConfig {
                                 "/api/video/upload",  // 临时允许视频上传（仅用于测试）
                                 "/api/video/list",    // 允许匿名访问视频列表
                                 "/api/video/*/detail", // 允许匿名访问视频详情
+                                "/api/video/*",       // 允许匿名访问视频详情（支持数字ID）
+                                "/api/video/*/interaction", // 允许匿名访问交互状态
+                                "/api/video/*/play",  // 允许匿名记录播放
+                                "/api/recommend/**",  // 允许匿名访问推荐接口
+                                "/api/video/search",  // 允许匿名搜索视频
                                 "/api/admin/login",
                                 "/api/admin/register"
                         ).permitAll()

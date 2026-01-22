@@ -40,6 +40,10 @@ public class HeatScoreServiceImpl implements HeatScoreService {
     
     private final VideoMapper videoMapper;
     private final RecommendationProperties recommendationProperties;
+    private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
+    
+    // Redis Key前缀
+    private static final String HOT_VIDEOS_CACHE_PREFIX = "hot_videos:";
     
     // 时间衰减阈值（天）
     private static final int DECAY_THRESHOLD_1 = 7;
@@ -130,12 +134,31 @@ public class HeatScoreServiceImpl implements HeatScoreService {
                 }
             }
             
+            // 清除热门视频缓存
+            clearHotVideosCache();
+            
             log.info("✅ 批量更新视频热度分数完成，共更新 {} 个视频", updatedCount);
             return updatedCount;
             
         } catch (Exception e) {
             log.error("Failed to update all video heat scores: {}", e.getMessage(), e);
             return 0;
+        }
+    }
+    
+    /**
+     * 清除热门视频缓存
+     */
+    private void clearHotVideosCache() {
+        try {
+            // 删除所有热门视频缓存（支持通配符）
+            java.util.Set<String> keys = redisTemplate.keys(HOT_VIDEOS_CACHE_PREFIX + "*");
+            if (keys != null && !keys.isEmpty()) {
+                redisTemplate.delete(keys);
+                log.info("Cleared {} hot videos cache entries", keys.size());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to clear hot videos cache: {}", e.getMessage());
         }
     }
     

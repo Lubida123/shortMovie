@@ -26,6 +26,17 @@ public interface UserLikeMapper extends BaseMapper<UserLike> {
     UserLike selectByUserIdAndVideoId(@Param("userId") Long userId, @Param("videoId") Long videoId);
 
     /**
+     * 物理删除点赞记录（直接DELETE，不是逻辑删除）
+     * 用于取消点赞操作
+     *
+     * @param userId  用户ID
+     * @param videoId 视频ID
+     * @return 删除的记录数
+     */
+    @org.apache.ibatis.annotations.Delete("DELETE FROM user_like WHERE user_id = #{userId} AND video_id = #{videoId}")
+    int physicalDelete(@Param("userId") Long userId, @Param("videoId") Long videoId);
+
+    /**
      * 查询用户点赞的视频ID列表（分页）
      *
      * @param page   分页对象

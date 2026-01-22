@@ -50,6 +50,8 @@ public class RecommendServiceImpl implements RecommendService {
     
     // Redis Key前缀
     private static final String RECOMMEND_USER_PREFIX = "recommend:user:";
+    private static final String HOT_VIDEOS_CACHE_PREFIX = "hot_videos:";
+    private static final int HOT_VIDEOS_CACHE_TTL_MINUTES = 5;  // 热门视频缓存5分钟
     
     @Override
     public List<VideoVO> getRealtimeRecommendFromRedis(Long userId) {
@@ -183,45 +185,73 @@ public class RecommendServiceImpl implements RecommendService {
                 return getHotVideosAsPage(pageNum, pageSize);
             }
             
-            // 1. 优先获取实时推荐
+            // 1. 获取实时推荐
             List<VideoVO> realtimeRecommendations = getRealtimeRecommendFromRedis(userId);
             
-            // 2. 如果实时推荐足够，直接返回
-            if (realtimeRecommendations.size() >= pageSize) {
-                int fromIndex = (pageNum - 1) * pageSize;
-                int toIndex = Math.min(fromIndex + pageSize, realtimeRecommendations.size());
+            // 2. 计算当前页在实时推荐中的位置
+            int realtimeStartIndex = (pageNum - 1) * pageSize;
+            int realtimeEndIndex = Math.min(realtimeStartIndex + pageSize, realtimeRecommendations.size());
+            
+            // 3. 如果当前页完全在实时推荐范围内，直接返回
+            if (realtimeStartIndex < realtimeRecommendations.size()) {
+                List<VideoVO> pageRecords = realtimeRecommendations.subList(realtimeStartIndex, realtimeEndIndex);
                 
-                if (fromIndex >= realtimeRecommendations.size()) {
-                    // 超出范围，返回空列表
+                // 如果这一页的实时推荐已经足够，直接返回
+                if (pageRecords.size() >= pageSize) {
+                    log.debug("Page {} fully covered by realtime recommendations for userId={}", pageNum, userId);
                     return PageVO.<VideoVO>builder()
                             .pageNum(pageNum)
                             .pageSize(pageSize)
                             .total((long) realtimeRecommendations.size())
                             .pages((int) Math.ceil((double) realtimeRecommendations.size() / pageSize))
-                            .records(Collections.emptyList())
+                            .records(pageRecords)
                             .build();
                 }
                 
-                List<VideoVO> pageRecords = realtimeRecommendations.subList(fromIndex, toIndex);
+                // 如果这一页的实时推荐不够，需要补充离线推荐
+                log.debug("Page {} partially covered by realtime recommendations ({}), need to supplement with offline recommendations for userId={}", 
+                        pageNum, pageRecords.size(), userId);
+                
+                // 计算需要从离线推荐中获取多少条
+                int neededCount = pageSize - pageRecords.size();
+                
+                // 获取离线推荐的第一页来补充
+                PageVO<VideoVO> offlineRecommendations = getOfflineRecommendFromDB(userId, 1, neededCount);
+                
+                // 过滤掉已经在实时推荐中的视频
+                Set<Long> realtimeVideoIds = realtimeRecommendations.stream()
+                        .map(VideoVO::getId)
+                        .collect(Collectors.toSet());
+                
+                List<VideoVO> filteredOfflineRecommendations = offlineRecommendations.getRecords().stream()
+                        .filter(video -> !realtimeVideoIds.contains(video.getId()))
+                        .limit(neededCount)
+                        .collect(Collectors.toList());
+                
+                // 合并结果
+                pageRecords.addAll(filteredOfflineRecommendations);
+                
+                log.info("Page {} hybrid result: {} realtime + {} offline for userId={}", 
+                        pageNum, realtimeEndIndex - realtimeStartIndex, filteredOfflineRecommendations.size(), userId);
                 
                 return PageVO.<VideoVO>builder()
                         .pageNum(pageNum)
                         .pageSize(pageSize)
-                        .total((long) realtimeRecommendations.size())
-                        .pages((int) Math.ceil((double) realtimeRecommendations.size() / pageSize))
+                        .total((long) (realtimeRecommendations.size() + offlineRecommendations.getTotal()))
+                        .pages((int) Math.ceil((double) (realtimeRecommendations.size() + offlineRecommendations.getTotal()) / pageSize))
                         .records(pageRecords)
                         .build();
             }
             
-            // 3. 冷启动策略2：实时推荐不足，降级使用离线推荐
-            log.debug("Realtime recommendations insufficient ({}), fallback to offline recommendations for userId={}", 
-                    realtimeRecommendations.size(), userId);
+            // 4. 当前页完全超出实时推荐范围，需要从离线推荐中获取
+            log.debug("Page {} beyond realtime recommendations, fetching from offline recommendations for userId={}", pageNum, userId);
             
-            // 获取离线推荐（离线推荐内部已实现降级到热门视频）
-            PageVO<VideoVO> offlineRecommendations = getOfflineRecommendFromDB(userId, pageNum, pageSize);
+            // 计算在离线推荐中的页码（需要减去实时推荐占用的页数）
+            int realtimePages = (int) Math.ceil((double) realtimeRecommendations.size() / pageSize);
+            int offlinePageNum = pageNum - realtimePages;
             
-            // 4. 合并推荐结果（实时推荐在前）
-            List<VideoVO> hybridList = new ArrayList<>(realtimeRecommendations);
+            // 获取离线推荐
+            PageVO<VideoVO> offlineRecommendations = getOfflineRecommendFromDB(userId, offlinePageNum, pageSize);
             
             // 过滤掉已经在实时推荐中的视频
             Set<Long> realtimeVideoIds = realtimeRecommendations.stream()
@@ -232,33 +262,15 @@ public class RecommendServiceImpl implements RecommendService {
                     .filter(video -> !realtimeVideoIds.contains(video.getId()))
                     .collect(Collectors.toList());
             
-            hybridList.addAll(filteredOfflineRecommendations);
+            log.info("Page {} from offline recommendations: {} videos for userId={}", pageNum, filteredOfflineRecommendations.size(), userId);
             
-            // 5. 分页处理
-            int fromIndex = (pageNum - 1) * pageSize;
-            int toIndex = Math.min(fromIndex + pageSize, hybridList.size());
-            
-            if (fromIndex >= hybridList.size()) {
-                return PageVO.<VideoVO>builder()
-                        .pageNum(pageNum)
-                        .pageSize(pageSize)
-                        .total((long) hybridList.size())
-                        .pages((int) Math.ceil((double) hybridList.size() / pageSize))
-                        .records(Collections.emptyList())
-                        .build();
-            }
-            
-            List<VideoVO> pageRecords = hybridList.subList(fromIndex, toIndex);
-            
-            log.info("Retrieved {} hybrid recommendations for userId={} (realtime: {}, offline: {})", 
-                    pageRecords.size(), userId, realtimeRecommendations.size(), filteredOfflineRecommendations.size());
-            
+            // 返回离线推荐结果
             return PageVO.<VideoVO>builder()
                     .pageNum(pageNum)
                     .pageSize(pageSize)
-                    .total((long) hybridList.size())
-                    .pages((int) Math.ceil((double) hybridList.size() / pageSize))
-                    .records(pageRecords)
+                    .total((long) (realtimeRecommendations.size() + offlineRecommendations.getTotal()))
+                    .pages((int) Math.ceil((double) (realtimeRecommendations.size() + offlineRecommendations.getTotal()) / pageSize))
+                    .records(filteredOfflineRecommendations)
                     .build();
             
         } catch (Exception e) {
@@ -270,8 +282,23 @@ public class RecommendServiceImpl implements RecommendService {
     
     @Override
     public List<VideoVO> getHotVideos(Integer limit) {
+        long startTime = System.currentTimeMillis();
+        String cacheKey = HOT_VIDEOS_CACHE_PREFIX + limit;
+        
         try {
-            // 查询热门视频（优先按热度分数降序，其次按播放量降序）
+            // 1. 尝试从Redis缓存读取
+            @SuppressWarnings("unchecked")
+            List<VideoVO> cachedVideos = (List<VideoVO>) redisTemplate.opsForValue().get(cacheKey);
+            
+            if (cachedVideos != null && !cachedVideos.isEmpty()) {
+                long duration = System.currentTimeMillis() - startTime;
+                log.info("Hot videos cache hit: limit={}, count={}, took {}ms", limit, cachedVideos.size(), duration);
+                return cachedVideos;
+            }
+            
+            log.debug("Hot videos cache miss: limit={}, querying database", limit);
+            
+            // 2. 缓存未命中，从数据库查询
             LambdaQueryWrapper<Video> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(Video::getAuditStatus, 1)  // 只查询已审核的视频
                     .orderByDesc(Video::getHeatScore)   // 优先按热度分数排序
@@ -290,11 +317,27 @@ public class RecommendServiceImpl implements RecommendService {
                     .map(video -> convertToVideoVO(video, null, null))
                     .collect(Collectors.toList());
             
-            log.info("Retrieved {} hot videos (sorted by heatScore)", result.size());
+            // 3. 写入Redis缓存
+            try {
+                redisTemplate.opsForValue().set(
+                    cacheKey, 
+                    result, 
+                    HOT_VIDEOS_CACHE_TTL_MINUTES, 
+                    java.util.concurrent.TimeUnit.MINUTES
+                );
+                log.debug("Hot videos cached: limit={}, count={}, ttl={}min", limit, result.size(), HOT_VIDEOS_CACHE_TTL_MINUTES);
+            } catch (Exception e) {
+                log.warn("Failed to cache hot videos: {}", e.getMessage());
+                // 缓存失败不影响返回结果
+            }
+            
+            long duration = System.currentTimeMillis() - startTime;
+            log.info("Retrieved {} hot videos from database (sorted by heatScore), took {}ms", result.size(), duration);
             return result;
             
         } catch (Exception e) {
-            log.error("Failed to get hot videos: {}", e.getMessage(), e);
+            long duration = System.currentTimeMillis() - startTime;
+            log.error("Failed to get hot videos: {}, took {}ms", e.getMessage(), duration, e);
             return Collections.emptyList();
         }
     }

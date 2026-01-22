@@ -61,7 +61,7 @@ public class LikeServiceImpl implements LikeService {
 
         boolean isLiked;
         if (existingLike == null) {
-            // 创建点赞记录
+            // 不存在点赞记录，创建新记录
             UserLike userLike = new UserLike();
             userLike.setUserId(userId);
             userLike.setVideoId(videoId);
@@ -76,29 +76,25 @@ public class LikeServiceImpl implements LikeService {
                 log.info("用户 {} 点赞视频 {}", userId, videoId);
             } catch (DuplicateKeyException e) {
                 // 并发冲突：另一个线程已经创建了点赞记录
-                // 这种情况下，当前事务会回滚，我们需要重新执行toggle操作
-                log.warn("并发点赞冲突，用户可能在多个请求中同时点赞: userId={}, videoId={}", userId, videoId);
-                // 重新查询当前状态，如果已存在则执行取消点赞
+                log.warn("并发点赞冲突: userId={}, videoId={}, 重新查询状态", userId, videoId);
+                // 重新查询当前状态
                 existingLike = userLikeMapper.selectByUserIdAndVideoId(userId, videoId);
                 if (existingLike != null) {
-                    // 已经点赞，执行取消点赞
-                    userLikeMapper.deleteById(existingLike.getId());
+                    // 已经点赞，执行取消点赞（物理删除）
+                    userLikeMapper.physicalDelete(userId, videoId);
                     videoMapper.decrementLikeCount(videoId);
                     isLiked = false;
                     log.info("并发冲突处理：用户 {} 取消点赞视频 {}", userId, videoId);
                 } else {
-                    // 理论上不应该到这里，说明记录在查询后又被删除了
-                    // 这种极端情况下，我们认为操作失败，抛出异常让用户重试
+                    // 极端情况：记录在查询后又被删除了
                     throw new RuntimeException("并发冲突：点赞状态不一致，请重试");
                 }
             }
         } else {
-            // 删除点赞记录（逻辑删除）
-            userLikeMapper.deleteById(existingLike.getId());
-
+            // 已存在点赞记录，执行取消点赞（物理删除）
+            userLikeMapper.physicalDelete(userId, videoId);
             // 使用原子操作减少视频点赞计数
             videoMapper.decrementLikeCount(videoId);
-
             isLiked = false;
             log.info("用户 {} 取消点赞视频 {}", userId, videoId);
         }
