@@ -77,6 +77,7 @@
 					</div>
 				</el-col>
 
+<<<<<<< HEAD
 				<el-col :xs="24" :sm="12" :md="6" :lg="6">
 					<div class="metric-card" style="border-left-color: #25f4ee">
 						<div
@@ -103,6 +104,84 @@
 						</div>
 					</div>
 				</el-col>
+=======
+    <!-- 数据表格：热门视频排行榜 -->
+    <div class="data-tables">
+      <el-row :gutter="20">
+        <!-- 热门视频排行榜 -->
+        <el-col :xs="24" :lg="24">
+          <div class="table-card">
+            <div class="table-header">
+              <h3><el-icon><Trophy /></el-icon> 热门视频排行榜</h3>
+              <div class="table-actions">
+                <el-select v-model="hotVideoSort" size="small" style="width: 120px;" @change="handleHotVideoSortChange">
+                  <el-option label="按播放量" value="views" />
+                  <el-option label="按点赞数" value="likes" />
+                  <el-option label="按评论数" value="comments" />
+                  <el-option label="按互动率" value="interactionRate" />
+                </el-select>
+              </div>
+            </div>
+            <div class="table-container">
+              <el-table
+                :data="sortedHotVideos"
+                style="width: 100%"
+                :row-class-name="tableRowClassName"
+                @row-click="handleVideoClick"
+              >
+                <el-table-column label="排名" width="60" align="center">
+                  <template #default="scope">
+                    <div class="rank-cell" :class="getRankClass(scope.$index)">
+                      {{ scope.$index + 1 }}
+                    </div>
+                  </template>
+                </el-table-column>
+                
+                <el-table-column label="视频标题" min-width="180">
+                  <template #default="scope">
+                    <div class="video-info">
+                      <img :src="scope.row.cover" alt="封面" class="video-cover">
+                      <div class="video-details">
+                        <div class="video-title">{{ scope.row.title }}</div>
+                        <div class="video-author">{{ scope.row.author }}</div>
+                      </div>
+                    </div>
+                  </template>
+                </el-table-column>
+                
+                <el-table-column prop="views" label="播放量" width="100" align="center">
+                  <template #default="scope">
+                    <span class="views-count">{{ formatNumber(scope.row.views) }}</span>
+                  </template>
+                </el-table-column>
+                
+                <el-table-column prop="likes" label="点赞数" width="100" align="center">
+                  <template #default="scope">
+                    <span class="likes-count">{{ formatNumber(scope.row.likes) }}</span>
+                  </template>
+                </el-table-column>
+                
+                <el-table-column label="互动率" width="100" align="center">
+                  <template #default="scope">
+                    <span class="interaction-rate">{{ (scope.row.interactionRate * 100).toFixed(1) }}%</span>
+                  </template>
+                </el-table-column>
+                
+                <el-table-column label="趋势" width="80" align="center">
+                  <template #default="scope">
+                    <div class="video-trend" :class="scope.row.trend >= 0 ? 'up' : 'down'">
+                      <el-icon :size="12"><TrendingUp v-if="scope.row.trend >= 0" /><TrendingDown v-else /></el-icon>
+                      <span>{{ Math.abs(scope.row.trend) }}%</span>
+                    </div>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </div>
+        </el-col>
+      </el-row>
+    </div>
+>>>>>>> ab255f4d0725a7ba959367d1a7b88e07ce009528
 
 				<el-col :xs="24" :sm="12" :md="6" :lg="6">
 					<div class="metric-card" style="border-left-color: #00c864">
@@ -508,6 +587,7 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import * as echarts from "echarts";
 import * as dataAnalysisApi from "@/api/admin/dataAnalysisApi";
 import {
+<<<<<<< HEAD
 	VideoPlay,
 	Star,
 	ChatLineRound,
@@ -537,6 +617,37 @@ const categorySort = ref("count");
 const activePeriod = ref("all");
 const hotVideoSort = ref("views");
 const lastUpdateTime = ref("");
+=======
+  VideoPlay,
+  Star,
+  ChatLineRound,
+  Share,
+  TrendCharts,
+  PieChart,
+  User,
+  DataAnalysis,
+  Clock,
+  Trophy,
+  Refresh,
+  Download,
+  FullScreen,
+  ArrowUp,
+  ArrowDown
+} from '@element-plus/icons-vue'
+
+// 状态管理
+const loading = ref(false)
+const chartLoading = ref(false)
+const timeRange = ref('week')
+const customDateRange = ref([])
+const viewChartType = ref('daily')
+const interactionType = ref('distribution')
+const userGrowthType = ref('new')
+const categorySort = ref('count')
+const activePeriod = ref('all')
+const hotVideoSort = ref('views')
+const lastUpdateTime = ref('')
+>>>>>>> ab255f4d0725a7ba959367d1a7b88e07ce009528
 
 // 图表放大相关状态
 const chartZoomVisible = ref(false);
@@ -708,6 +819,7 @@ const rawHotVideos = ref([
 
 // 固定活跃时段数据（每个时段不超过1000）
 const fixedActivePeriodData = {
+<<<<<<< HEAD
 	// 工作日数据 - 早晨和晚上高峰
 	weekday: [
 		50, // 0:00
@@ -774,6 +886,70 @@ fixedActivePeriodData.all = fixedActivePeriodData.weekday.map(
 		);
 	},
 );
+=======
+  // 工作日数据 - 早晨和晚上高峰
+  weekday: [
+    50,   // 0:00
+    30,   // 1:00
+    20,   // 2:00
+    15,   // 3:00
+    20,   // 4:00
+    50,   // 5:00
+    180,  // 6:00
+    350,  // 7:00
+    450,  // 8:00
+    420,  // 9:00
+    400,  // 10:00
+    380,  // 11:00
+    450,  // 12:00 (午休时间)
+    420,  // 13:00
+    400,  // 14:00
+    380,  // 15:00
+    420,  // 16:00
+    500,  // 17:00 (下班时间开始)
+    750,  // 18:00
+    850,  // 19:00
+    950,  // 20:00 (晚间高峰)
+    800,  // 21:00
+    400,  // 22:00
+    150   // 23:00
+  ],
+  // 周末数据 - 白天活跃时间更长
+  weekend: [
+    80,   // 0:00
+    60,   // 1:00
+    40,   // 2:00
+    30,   // 3:00
+    40,   // 4:00
+    60,   // 5:00
+    120,  // 6:00
+    200,  // 7:00
+    350,  // 8:00
+    550,  // 9:00
+    700,  // 10:00
+    850,  // 11:00
+    950,  // 12:00 (午间高峰)
+    900,  // 13:00
+    850,  // 14:00
+    800,  // 15:00
+    850,  // 16:00
+    900,  // 17:00
+    950,  // 18:00 (晚间高峰)
+    980,  // 19:00
+    900,  // 20:00
+    650,  // 21:00
+    350,  // 22:00
+    120   // 23:00
+  ],
+  // 平均数据
+  all: []
+}
+
+// 计算平均数据
+fixedActivePeriodData.all = fixedActivePeriodData.weekday.map((weekdayValue, index) => {
+  return Math.round((weekdayValue + fixedActivePeriodData.weekend[index]) / 2)
+})
+>>>>>>> ab255f4d0725a7ba959367d1a7b88e07ce009528
 
 // ==================== 计算属性：排序后的表格数据 ====================
 
@@ -781,6 +957,7 @@ fixedActivePeriodData.all = fixedActivePeriodData.weekday.map(
 const sortedHotVideos = computed(() => {
 	const videos = [...rawHotVideos.value];
 
+<<<<<<< HEAD
 	// 根据排序条件排序
 	switch (hotVideoSort.value) {
 		case "views":
@@ -796,6 +973,8 @@ const sortedHotVideos = computed(() => {
 	}
 });
 
+=======
+>>>>>>> ab255f4d0725a7ba959367d1a7b88e07ce009528
 // ==================== 生成不同粒度的时间标签函数 ====================
 
 // 生成日趋势标签
@@ -1377,6 +1556,7 @@ const getCategoryChartOption = (isZoom = false) => {
 		{ value: 540, name: "音乐" },
 	];
 
+<<<<<<< HEAD
 	const colors = ["#FE2C55", "#25F4EE", "#FF9500", "#00C864", "#AF52DE"];
 
 	return {
@@ -1538,6 +1718,105 @@ const getActivePeriodChartOption = (isZoom = false) => {
 		],
 	};
 };
+=======
+// 获取用户活跃时段分析图配置（使用固定数据）
+const getActivePeriodChartOption = (isZoom = false) => {
+  const hours = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`)
+  
+  let data = []
+  switch (activePeriod.value) {
+    case 'weekday':
+      data = fixedActivePeriodData.weekday
+      break
+    case 'weekend':
+      data = fixedActivePeriodData.weekend
+      break
+    case 'all':
+      data = fixedActivePeriodData.all
+      break
+    default:
+      data = fixedActivePeriodData.all
+  }
+  
+  return {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(22, 22, 24, 0.9)',
+      borderColor: 'rgba(255, 255, 255, 0.1)',
+      textStyle: { color: '#fff' },
+      formatter: (params) => {
+        const hour = params[0].name
+        const value = params[0].value
+        return `时间: ${hour}<br/>活跃用户: ${value}人`
+      }
+    },
+    grid: {
+      left: isZoom ? '5%' : '3%',
+      right: isZoom ? '5%' : '4%',
+      bottom: isZoom ? '12%' : '3%',
+      top: isZoom ? '15%' : '15%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: hours,
+      axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.2)' } },
+      axisLabel: { 
+        color: 'rgba(255, 255, 255, 0.7)',
+        interval: isZoom ? 0 : 2, // 显示所有小时标签
+        fontSize: isZoom ? 11 : 9
+      }
+    },
+    yAxis: {
+      type: 'value',
+      max: 1000, // 固定Y轴最大值为1000
+      axisLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.2)' } },
+      axisLabel: { 
+        color: 'rgba(255, 255, 255, 0.7)',
+        fontSize: isZoom ? 12 : 10
+      },
+      splitLine: { lineStyle: { color: 'rgba(255, 255, 255, 0.1)' } }
+    },
+    series: [
+      {
+        name: '活跃用户',
+        type: 'bar',
+        barWidth: isZoom ? '85%' : '80%',
+        itemStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [{
+              offset: 0, color: '#25F4EE'
+            }, {
+              offset: 1, color: '#FE2C55'
+            }]
+          }
+        },
+        data: data,
+        markLine: {
+          silent: true,
+          lineStyle: {
+            color: '#FF9500',
+            type: 'dashed'
+          },
+          data: [{
+            yAxis: 800,
+            label: {
+              formatter: '高峰阈值',
+              position: 'middle'
+            }
+          }]
+        }
+      }
+    ]
+  }
+}
+>>>>>>> ab255f4d0725a7ba959367d1a7b88e07ce009528
 
 // ==================== 工具函数 ====================
 
@@ -1588,11 +1867,19 @@ const formatNumber = (num) => {
 
 // 获取排名样式
 const getRankClass = (index) => {
+<<<<<<< HEAD
 	if (index === 0) return "rank-gold";
 	if (index === 1) return "rank-silver";
 	if (index === 2) return "rank-bronze";
 	return "";
 };
+=======
+  if (index === 0) return 'rank-gold'
+  if (index === 1) return 'rank-silver'
+  if (index === 2) return 'rank-bronze'
+  return ''
+}
+>>>>>>> ab255f4d0725a7ba959367d1a7b88e07ce009528
 
 // 表格行样式
 const tableRowClassName = ({ rowIndex }) => {
@@ -1875,6 +2162,7 @@ const handleActivePeriodChange = async () => {
 };
 
 // 热门视频排序改变
+<<<<<<< HEAD
 const handleHotVideoSortChange = async () => {
 	await loadHotVideos();
 	const sortLabels = {
@@ -1914,6 +2202,52 @@ const exportData = async () => {
 		ElMessage.error("数据导出失败");
 	}
 };
+=======
+const handleHotVideoSortChange = () => {
+  // 排序逻辑已通过计算属性实现
+  const sortLabels = {
+    views: '播放量',
+    likes: '点赞数',
+    comments: '评论数',
+    interactionRate: '互动率'
+  }
+  ElMessage.success(`已按${sortLabels[hotVideoSort.value]}排序`)
+}
+
+// 导出数据
+const exportData = () => {
+  ElMessageBox.confirm(
+    '确定要导出当前数据吗？',
+    '导出数据',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'info'
+    }
+  ).then(() => {
+    // 导出排序后的数据
+    const exportData = {
+      hotVideos: sortedHotVideos.value,
+      coreMetrics: coreMetrics.value,
+      activePeriodData: fixedActivePeriodData,
+      exportTime: new Date().toLocaleString('zh-CN')
+    }
+    
+    // 创建下载链接
+    const dataStr = JSON.stringify(exportData, null, 2)
+    const dataBlob = new Blob([dataStr], { type: 'application/json' })
+    const url = URL.createObjectURL(dataBlob)
+    
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `数据分析_${new Date().getTime()}.json`
+    link.click()
+    
+    URL.revokeObjectURL(url)
+    ElMessage.success('数据导出成功！')
+  })
+}
+>>>>>>> ab255f4d0725a7ba959367d1a7b88e07ce009528
 
 // 视频点击
 const handleVideoClick = (row) => {
@@ -1929,6 +2263,7 @@ const handleVideoClick = (row) => {
 	);
 };
 
+<<<<<<< HEAD
 // ==================== 数据加载函数 ====================
 
 // 构建时间范围参数
@@ -2159,6 +2494,55 @@ const refreshData = async () => {
 		chartLoading.value = false;
 	}
 };
+=======
+// 刷新数据
+const refreshData = () => {
+  loading.value = true
+  chartLoading.value = true
+  
+  // 模拟API调用
+  setTimeout(() => {
+    // 更新最后更新时间
+    const now = new Date()
+    lastUpdateTime.value = now.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    })
+    
+    // 更新核心指标数据（模拟变化）
+    coreMetrics.value = {
+      totalViews: coreMetrics.value.totalViews + Math.floor(Math.random() * 10000),
+      viewTrend: (Math.random() * 20 - 5).toFixed(1),
+      totalLikes: coreMetrics.value.totalLikes + Math.floor(Math.random() * 1000),
+      likeTrend: (Math.random() * 15 - 3).toFixed(1),
+      totalComments: coreMetrics.value.totalComments + Math.floor(Math.random() * 100),
+      commentTrend: (Math.random() * 10 - 2).toFixed(1),
+      totalShares: coreMetrics.value.totalShares + Math.floor(Math.random() * 50),
+      shareTrend: (Math.random() * 25 - 5).toFixed(1)
+    }
+    
+    // 更新视频数据（模拟变化）
+    rawHotVideos.value = rawHotVideos.value.map(video => ({
+      ...video,
+      views: video.views + Math.floor(Math.random() * 1000),
+      likes: video.likes + Math.floor(Math.random() * 100),
+      comments: video.comments + Math.floor(Math.random() * 50),
+      trend: (Math.random() * 30 - 10).toFixed(1)
+    }))
+    
+    // 更新图表数据
+    updateCharts()
+    
+    loading.value = false
+    chartLoading.value = false
+    ElMessage.success('数据已刷新')
+  }, 1500)
+}
+>>>>>>> ab255f4d0725a7ba959367d1a7b88e07ce009528
 
 // ==================== 生命周期和监听器 ====================
 
@@ -2435,6 +2819,7 @@ onUnmounted(() => {
 
 // 数据表格
 .data-tables {
+<<<<<<< HEAD
 	margin-bottom: 24px;
 
 	.table-card {
@@ -2603,6 +2988,176 @@ onUnmounted(() => {
 			color: #fe2c55;
 		}
 	}
+=======
+  margin-bottom: 24px;
+  
+  .table-card {
+    background: @dy-bg-container;
+    border: @dy-border-default;
+    border-radius: 12px;
+    padding: 20px;
+    height: 100%;
+    
+    .table-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      
+      h3 {
+        font-size: 16px;
+        font-weight: 600;
+        color: @dy-text-primary;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        
+        .el-icon {
+          color: #FF9500;
+        }
+      }
+    }
+    
+    .table-container {
+      :deep(.el-table) {
+        background: transparent;
+        
+        .el-table__header-wrapper {
+          th {
+            background: @dy-bg-elevated;
+            border-bottom: @dy-border-default;
+            
+            .cell {
+              color: @dy-text-secondary;
+              font-weight: 600;
+            }
+          }
+        }
+        
+        .el-table__body-wrapper {
+          .el-table__row {
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            
+            &:hover {
+              background-color: rgba(37, 244, 238, 0.08) !important;
+            }
+            
+            &.even-row {
+              background-color: rgba(255, 255, 255, 0.02);
+            }
+            
+            .el-table__cell {
+              border-bottom: @dy-border-default;
+              
+              .cell {
+                color: @dy-text-primary;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // 排名单元格样式
+  .rank-cell {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+    margin: 0 auto;
+    background: rgba(255, 255, 255, 0.05);
+    color: @dy-text-secondary;
+    
+    &.rank-gold {
+      background: linear-gradient(135deg, #FFD700, #FFC107);
+      color: #333;
+    }
+    
+    &.rank-silver {
+      background: linear-gradient(135deg, #C0C0C0, #A8A8A8);
+      color: #333;
+    }
+    
+    &.rank-bronze {
+      background: linear-gradient(135deg, #CD7F32, #B06F2E);
+      color: white;
+    }
+  }
+  
+  // 视频信息样式
+  .video-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    
+    .video-cover {
+      width: 60px;
+      height: 40px;
+      border-radius: 4px;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    
+    .video-details {
+      flex: 1;
+      min-width: 0;
+      
+      .video-title {
+        font-size: 14px;
+        color: @dy-text-primary;
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      
+      .video-author {
+        font-size: 12px;
+        color: @dy-text-tertiary;
+      }
+    }
+  }
+  
+  // 计数样式
+  .views-count,
+  .likes-count {
+    font-family: "DIN Condensed", sans-serif;
+    font-weight: 500;
+  }
+  
+  .interaction-rate {
+    color: @dy-brand-cyan;
+    font-weight: 600;
+  }
+  
+  // 视频趋势样式
+  .video-trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 2px 6px;
+    border-radius: 4px;
+    
+    &.up {
+      background: rgba(0, 200, 100, 0.1);
+      color: #00C864;
+    }
+    
+    &.down {
+      background: rgba(254, 44, 85, 0.1);
+      color: #FE2C55;
+    }
+  }
+>>>>>>> ab255f4d0725a7ba959367d1a7b88e07ce009528
 }
 
 // 刷新区域
@@ -2680,6 +3235,7 @@ onUnmounted(() => {
 
 // 响应式适配
 @media (max-width: 768px) {
+<<<<<<< HEAD
 	.admin-data-analysis-container {
 		padding: 12px;
 	}
@@ -2743,6 +3299,71 @@ onUnmounted(() => {
 	.zoom-chart-container {
 		height: 50vh;
 	}
+=======
+  .admin-data-analysis-container {
+    padding: 12px;
+  }
+  
+  .page-header {
+    .header-content {
+      flex-direction: column;
+      align-items: stretch;
+      
+      .header-left,
+      .header-right {
+        width: 100%;
+      }
+      
+      .header-right {
+        flex-direction: column;
+        align-items: stretch;
+        
+        .date-selector {
+          flex-direction: column;
+          align-items: stretch;
+          
+          .el-date-picker {
+            width: 100% !important;
+          }
+        }
+      }
+    }
+  }
+  
+  .chart-card {
+    .chart-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+      
+      .chart-actions {
+        width: 100%;
+        justify-content: space-between;
+      }
+    }
+    
+    .chart-container {
+      height: 240px !important;
+    }
+  }
+  
+  .data-tables {
+    .video-info {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    
+    .video-trend {
+      font-size: 10px;
+      padding: 1px 4px;
+    }
+  }
+  
+  .zoom-chart-container {
+    height: 50vh;
+  }
+>>>>>>> ab255f4d0725a7ba959367d1a7b88e07ce009528
 }
 
 @media (min-width: 769px) and (max-width: 1024px) {
